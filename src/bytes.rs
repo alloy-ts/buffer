@@ -41,7 +41,7 @@ impl Bytes {
   /// Creates a `Bytes` by copying the contents of the given buffer.
   ///
   /// Corresponds to `Bytes::copy_from_slice` / `Bytes::from(Vec<u8>)`.
-  #[napi(factory)]
+  #[napi(factory, ts_args_type = "buffer: Buffer", ts_return_type = "Bytes")]
   pub fn from_buffer(buffer: Buffer) -> Self {
     Self { inner: InnerBytes::copy_from_slice(buffer.as_ref()) }
   }
@@ -154,33 +154,22 @@ impl Bytes {
   ///
   /// This is a copy: napi-rs cannot hand out a zero-copy view that outlives
   /// the call. Use `slice`/`split_*` to share storage cheaply inside Rust.
-  #[napi]
+  #[napi(ts_return_type = "Buffer")]
   pub fn as_slice(&self) -> Buffer {
     Buffer::from(self.inner.as_ref())
-  }
-
-  /// Returns a `Reader` that reads from this `Bytes`.
-  ///
-  /// This is the idiomatic equivalent of `Buf::reader(self)`; the reader owns
-  /// its own clone of the buffer, so this `Bytes` remains usable afterwards.
-  #[napi]
-  pub fn reader(&self) -> crate::reader::Reader {
-    crate::reader::Reader::from_inner(self.inner.clone())
   }
 
   /// Returns a node:buffer-compatible `Buffer` (a copy) over this `Bytes`.
   ///
   /// The returned `Buffer` is an independent, writable copy, so this `Bytes`
   /// remains usable afterwards.
-  #[napi]
+  #[napi(ts_return_type = "Buffer")]
   pub fn buf(&self) -> crate::buffer::Buffer {
     crate::buffer::Buffer::from_buffer(self.as_slice())
   }
 }
 
-// Crate-internal accessors so sibling modules (e.g. `reader.rs`) can build a
-// `Reader` over the underlying `bytes::Bytes` without reaching into the
-// private field.
+// Crate-internal accessors.
 impl Bytes {
   pub(crate) fn from_inner(inner: InnerBytes) -> Self {
     Self { inner }

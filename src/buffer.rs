@@ -292,7 +292,7 @@ fn get_bytes(env: &Env, v: sys::napi_value) -> Result<Vec<u8>> {
   let mut b = false;
   check_status!(unsafe { sys::napi_is_buffer(env.raw(), v, &mut b) })?;
   if b {
-    let buf = conv::<JsBuffer>(env, v);
+    let buf = conv::<JsBuffer>(&env, v)?;
     return Ok(buf.as_ref().to_vec());
   }
   let mut t = false;
@@ -312,7 +312,7 @@ fn get_bytes(env: &Env, v: sys::napi_value) -> Result<Vec<u8>> {
   let mut a = false;
   check_status!(unsafe { sys::napi_is_arraybuffer(env.raw(), v, &mut a) })?;
   if a {
-    let ab = conv::<ArrayBuffer>(env, v);
+    let ab = conv::<ArrayBuffer>(env, v)?;
     return Ok(ab.to_vec());
   }
   Err(Error::new(
@@ -368,17 +368,17 @@ impl Buffer {
   }
 
   /// Allocates a zero-filled buffer of `size` bytes, optionally filled.
-  #[napi]
+  #[napi(ts_return_type = "Buffer")]
   pub fn alloc(env: Env, size: u32, fill: Option<Unknown>, encoding: Option<String>) -> Result<Buffer> {
     let mut b = Buffer {
       data: vec![0u8; size as usize],
     };
     if let Some(v) = fill {
       let raw = raw_of(&v);
-      if let Ok(n) = conv::<f64>(env, raw) {
+      if let Ok(n) = conv::<f64>(&env, raw) {
         let byte = ((n as i32) & 0xff) as u8;
         b.data.iter_mut().for_each(|x| *x = byte);
-      } else if let Ok(s) = conv::<String>(env, raw) {
+      } else if let Ok(s) = conv::<String>(&env, raw) {
         let enc = encoding.unwrap_or_else(|| "utf8".to_string());
         let bytes = str_to_bytes(&s, &enc)?;
         if !bytes.is_empty() {
@@ -386,7 +386,7 @@ impl Buffer {
             *x = bytes[i % bytes.len()];
           }
         }
-      } else if let Ok(buf) = conv::<JsBuffer>(env, raw) {
+      } else if let Ok(buf) = conv::<JsBuffer>(&env, raw) {
         let bytes = buf.as_ref();
         if !bytes.is_empty() {
           for (i, x) in b.data.iter_mut().enumerate() {
@@ -402,19 +402,19 @@ impl Buffer {
   ///
   /// For safety this still zero-fills (napi cannot hand back truly uninitialized
   /// memory across the FFI boundary).
-  #[napi(js_name = "allocUnsafe")]
+  #[napi(js_name = "allocUnsafe", ts_return_type = "Buffer")]
   pub fn alloc_unsafe(size: u32, _alignment: Option<u32>) -> Buffer {
     Buffer::new(size)
   }
 
   /// Like `allocUnsafe` but never uses the internal pool.
-  #[napi(js_name = "allocUnsafeSlow")]
+  #[napi(js_name = "allocUnsafeSlow", ts_return_type = "Buffer")]
   pub fn alloc_unsafe_slow(size: u32, _alignment: Option<u32>) -> Buffer {
     Buffer::new(size)
   }
 
   /// Creates a buffer by copying an existing Node `Buffer`.
-  #[napi(factory)]
+  #[napi(factory, ts_args_type = "buffer: Buffer", ts_return_type = "Buffer")]
   pub fn from_buffer(buffer: JsBuffer) -> Buffer {
     Buffer {
       data: buffer.as_ref().to_vec(),
@@ -425,10 +425,10 @@ impl Buffer {
   ///
   /// Supports: string (with optional encoding), ArrayBuffer (with byteOffset /
   /// length), TypedArray, DataView, Buffer / Uint8Array, and plain Arrays.
-  #[napi(js_name = "from")]
+  #[napi(js_name = "from", ts_return_type = "Buffer")]
   pub fn from(env: Env, value: Unknown, arg1: Option<Unknown>, arg2: Option<Unknown>) -> Result<Buffer> {
     let raw = raw_of(&value);
-    if let Ok(s) = conv::<String>(env, raw) {
+    if let Ok(s) = conv::<String>(&env, raw) {
       let enc = arg1
         .and_then(|u| unknown_to_string(&env, u))
         .unwrap_or_else(|| "utf8".to_string());
@@ -454,7 +454,7 @@ impl Buffer {
     let mut is_ab = false;
     check_status!(unsafe { sys::napi_is_arraybuffer(env.raw(), raw, &mut is_ab) })?;
     if is_ab {
-      let ab = conv::<ArrayBuffer>(env, raw);
+      let ab = conv::<ArrayBuffer>(&env, raw)?;
       let total = ab.len();
       let off = arg1
         .as_ref()
@@ -473,7 +473,7 @@ impl Buffer {
     let mut is_buf = false;
     check_status!(unsafe { sys::napi_is_buffer(env.raw(), raw, &mut is_buf) })?;
     if is_buf {
-      let buf = conv::<JsBuffer>(env, raw);
+      let buf = conv::<JsBuffer>(&env, raw)?;
       return Ok(Buffer {
         data: buf.as_ref().to_vec(),
       });
@@ -481,7 +481,7 @@ impl Buffer {
     let mut is_arr = false;
     check_status!(unsafe { sys::napi_is_array(env.raw(), raw, &mut is_arr) })?;
     if is_arr {
-      let arr: Vec<Unknown> = conv::<Vec<Unknown>>(env, raw)?;
+      let arr: Vec<Unknown> = conv::<Vec<Unknown>>(&env, raw)?;
       let data: Vec<u8> = arr.into_iter().map(|u| unknown_to_byte(&env, u)).collect();
       return Ok(Buffer { data });
     }
@@ -498,7 +498,7 @@ impl Buffer {
   }
 
   /// A view of the buffer's backing memory (a real `Buffer` copy).
-  #[napi(getter)]
+  #[napi(getter, ts_return_type = "Buffer")]
   pub fn buffer(&self) -> JsBuffer {
     JsBuffer::from(self.data.clone())
   }
@@ -510,13 +510,13 @@ impl Buffer {
   }
 
   /// Alias of `.buffer`.
-  #[napi(getter)]
+  #[napi(getter, ts_return_type = "Buffer")]
   pub fn parent(&self) -> JsBuffer {
     JsBuffer::from(self.data.clone())
   }
 
   /// Concatenates a list of buffers into one.
-  #[napi]
+  #[napi(ts_args_type = "list: Array<Buffer>, totalLength?: number", ts_return_type = "Buffer")]
   pub fn concat(list: Vec<JsBuffer>, total_length: Option<u32>) -> Buffer {
     let total = total_length.unwrap_or_else(|| {
       list.iter().map(|b| b.as_ref().len() as u32).sum()
@@ -533,7 +533,7 @@ impl Buffer {
   #[napi(js_name = "byteLength")]
   pub fn byte_length(env: Env, value: Unknown, encoding: Option<String>) -> Result<u32> {
     let raw = raw_of(&value);
-    if let Ok(s) = conv::<String>(env, raw) {
+    if let Ok(s) = conv::<String>(&env, raw) {
       let enc = encoding.unwrap_or_else(|| "utf8".to_string());
       return Ok(str_to_bytes(&s, &enc)?.len() as u32);
     }
@@ -550,13 +550,13 @@ impl Buffer {
   }
 
   /// Compares two buffers, returning -1, 0, or 1.
-  #[napi]
+  #[napi(ts_args_type = "buf1: Buffer, buf2: Buffer")]
   pub fn compare(buf1: JsBuffer, buf2: JsBuffer) -> i32 {
     buf1.as_ref().cmp(buf2.as_ref()) as i32
   }
 
   /// Copies the underlying bytes of a TypedArray into a new Buffer.
-  #[napi(js_name = "copyBytesFrom")]
+  #[napi(js_name = "copyBytesFrom", ts_return_type = "Buffer")]
   pub fn copy_bytes_from(env: Env, view: Unknown, offset: Option<u32>, length: Option<u32>) -> Result<Buffer> {
     let raw = raw_of(&view);
     let mut is_ta = false;
@@ -576,7 +576,7 @@ impl Buffer {
         data: slice[start..end].to_vec(),
       });
     }
-    let buf = conv::<JsBuffer>(env, raw);
+    let buf = conv::<JsBuffer>(&env, raw)?;
     Ok(Buffer {
       data: buf.as_ref().to_vec(),
     })
@@ -1163,20 +1163,20 @@ impl Buffer {
   // --- views / comparison ------------------------------------------------
 
   /// Returns a copy of the bytes in `start..end` as a real Node `Buffer`.
-  #[napi]
+  #[napi(ts_return_type = "Buffer")]
   pub fn slice(&self, start: Option<i64>, end: Option<i64>) -> Result<JsBuffer> {
     let (s, e) = self.clamp_range(start, end)?;
     Ok(JsBuffer::from(&self.data[s..e]))
   }
 
   /// Alias of `slice` (Node's `subarray` shares memory; here it copies).
-  #[napi]
+  #[napi(ts_return_type = "Buffer")]
   pub fn subarray(&self, start: Option<i64>, end: Option<i64>) -> Result<JsBuffer> {
     self.slice(start, end)
   }
 
   /// Returns a copy of all written bytes as a real Node `Buffer`.
-  #[napi]
+  #[napi(ts_return_type = "Buffer")]
   pub fn bytes(&self) -> JsBuffer {
     JsBuffer::from(self.data.as_slice())
   }
@@ -1186,10 +1186,10 @@ impl Buffer {
   pub fn fill(&mut self, env: Env, value: Unknown, start: Option<u32>, end: Option<u32>, encoding: Option<String>) -> Result<()> {
     let (s, e) = self.range_u(start, end)?;
     let raw = raw_of(&value);
-    if let Ok(n) = conv::<f64>(env, raw) {
+    if let Ok(n) = conv::<f64>(&env, raw) {
       let byte = ((n as i32) & 0xff) as u8;
       self.data[s..e].iter_mut().for_each(|x| *x = byte);
-    } else if let Ok(s2) = conv::<String>(env, raw) {
+    } else if let Ok(s2) = conv::<String>(&env, raw) {
       let enc = encoding.unwrap_or_else(|| "utf8".to_string());
       let bytes = str_to_bytes(&s2, &enc)?;
       if bytes.is_empty() {
@@ -1213,19 +1213,19 @@ impl Buffer {
   }
 
   /// Returns true if the bytes equal `other`.
-  #[napi]
+  #[napi(ts_args_type = "other: Buffer")]
   pub fn equals(&self, other: JsBuffer) -> bool {
     self.data == other.as_ref()
   }
 
   /// Lexicographic comparison with `other`: -1, 0, or 1.
-  #[napi]
+  #[napi(ts_args_type = "other: Buffer")]
   pub fn compare_with(&self, other: JsBuffer) -> i32 {
     self.data.as_slice().cmp(other.as_ref()) as i32
   }
 
   /// Copies bytes from this buffer into `target`. Returns the number copied.
-  #[napi]
+  #[napi(ts_args_type = "target: Buffer, targetStart?: number, sourceStart?: number, sourceEnd?: number")]
   pub fn copy(&self, mut target: JsBuffer, target_start: Option<u32>, source_start: Option<u32>, source_end: Option<u32>) -> Result<u32> {
     let ts = target_start.unwrap_or(0) as usize;
     let ss = source_start.unwrap_or(0) as usize;
@@ -1489,13 +1489,13 @@ impl Blob {
   }
 
   /// Returns a copy of the Blob's data as an ArrayBuffer.
-  #[napi(js_name = "arrayBuffer")]
-  pub fn array_buffer(&self, env: Env) -> Result<ArrayBuffer> {
+  #[napi(js_name = "arrayBuffer", ts_return_type = "ArrayBuffer")]
+  pub fn array_buffer(&self, env: Env) -> Result<ArrayBuffer<'_>> {
     ArrayBuffer::from_data(&env, self.data.clone())
   }
 
   /// Returns a copy of the Blob's data as a Buffer.
-  #[napi]
+  #[napi(ts_return_type = "Buffer")]
   pub fn bytes(&self) -> JsBuffer {
     JsBuffer::from(self.data.clone())
   }
@@ -1508,7 +1508,7 @@ impl Blob {
 
   /// Creates a new Blob containing a subset of this Blob's data.
   #[napi]
-  pub fn slice(&self, start: Option<i64>, end: Option<i64>, r#type: Option<String>) -> Blob {
+  pub fn slice(&self, start: Option<i64>, end: Option<i64>, mime_type: Option<String>) -> Blob {
     let len = self.data.len() as i64;
     let mut s = start.unwrap_or(0);
     if s < 0 {
@@ -1527,7 +1527,7 @@ impl Blob {
     if s > e {
       s = e;
     }
-    let r#type = r#type.unwrap_or_else(|| self.r#type.clone());
+    let r#type = mime_type.unwrap_or_else(|| self.r#type.clone());
     Blob {
       data: self.data[s as usize..e as usize].to_vec(),
       r#type,
@@ -1587,13 +1587,13 @@ impl File {
   }
 
   /// Returns a copy of the File's data as an ArrayBuffer.
-  #[napi(js_name = "arrayBuffer")]
-  pub fn array_buffer(&self, env: Env) -> Result<ArrayBuffer> {
+  #[napi(js_name = "arrayBuffer", ts_return_type = "ArrayBuffer")]
+  pub fn array_buffer(&self, env: Env) -> Result<ArrayBuffer<'_>> {
     ArrayBuffer::from_data(&env, self.data.clone())
   }
 
   /// Returns a copy of the File's data as a Buffer.
-  #[napi]
+  #[napi(ts_return_type = "Buffer")]
   pub fn bytes(&self) -> JsBuffer {
     JsBuffer::from(self.data.clone())
   }
@@ -1606,7 +1606,7 @@ impl File {
 
   /// Creates a new File containing a subset of this File's data.
   #[napi]
-  pub fn slice(&self, start: Option<i64>, end: Option<i64>, r#type: Option<String>) -> File {
+  pub fn slice(&self, start: Option<i64>, end: Option<i64>, mime_type: Option<String>) -> File {
     let len = self.data.len() as i64;
     let mut s = start.unwrap_or(0);
     if s < 0 {
@@ -1629,7 +1629,7 @@ impl File {
       data: self.data[s as usize..e as usize].to_vec(),
       name: self.name.clone(),
       last_modified: self.last_modified,
-      r#type: r#type.unwrap_or_else(|| self.r#type.clone()),
+      r#type: mime_type.unwrap_or_else(|| self.r#type.clone()),
     }
   }
 
@@ -1695,7 +1695,7 @@ pub fn is_latin1(input: String) -> bool {
 }
 
 /// Re-encodes `source` from `from_encoding` to `to_encoding`.
-#[napi]
+#[napi(ts_return_type = "Buffer")]
 pub fn transcode(env: Env, source: Unknown, from_encoding: String, to_encoding: String) -> Result<JsBuffer> {
   let bytes = get_bytes(&env, raw_of(&source))?;
   let intermediate = bytes_to_str(&bytes, &from_encoding)?;
