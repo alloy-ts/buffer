@@ -386,7 +386,7 @@ impl Buffer {
             *x = bytes[i % bytes.len()];
           }
         }
-      } else if let Ok(buf) = unsafe { JsBuffer::from_napi_value(env.raw(), raw) }? {
+      } else if let Ok(buf) = unsafe { JsBuffer::from_napi_value(env.raw(), raw) } {
         let bytes = buf.as_ref();
         if !bytes.is_empty() {
           for (i, x) in b.data.iter_mut().enumerate() {

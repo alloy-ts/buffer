@@ -159,14 +159,6 @@ impl Bytes {
     Buffer::from(self.inner.as_ref())
   }
 
-  /// Returns a `Reader` that reads from this `Bytes`.
-  ///
-  /// This is the idiomatic equivalent of `Buf::reader(self)`; the reader owns
-  /// its own clone of the buffer, so this `Bytes` remains usable afterwards.
-  #[napi]
-  pub fn reader(&self) -> crate::reader::Reader {
-    crate::reader::Reader::from_inner(self.inner.clone())
-  }
 
   /// Returns a node:buffer-compatible `Buffer` (a copy) over this `Bytes`.
   ///
