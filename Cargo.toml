@@ -7,7 +7,8 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-napi = "3"
+bytes = "1.12.1"
+napi = { version = "3", features = ["napi6"] }
 napi-derive = "3"
 
 [build-dependencies]
