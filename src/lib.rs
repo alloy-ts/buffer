@@ -1,6 +1,10 @@
-mod bytes;
-mod buffer;
-mod reader;
+pub mod bytes;
+pub mod buffer;
+pub mod reader;
+
+pub use buffer::*;
+pub use bytes::*;
+pub use reader::*;
 
 use napi_derive::napi;
 

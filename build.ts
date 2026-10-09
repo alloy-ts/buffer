@@ -21,6 +21,11 @@ async function run() {
     crossCompile,
     useCross,
   });
+
+  const fs = await import("node:fs");
+  if (fs.existsSync("./dist/my-addon.linux-x64-gnu.node")) {
+    fs.copyFileSync("./dist/my-addon.linux-x64-gnu.node", "./my-addon.linux-x64-gnu.node");
+  }
 }
 
 void run().catch((err) => {
