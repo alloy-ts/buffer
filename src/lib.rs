@@ -1,6 +1,4 @@
-mod bytes;
 mod buffer;
-mod reader;
 
 use napi_derive::napi;
 

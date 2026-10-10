@@ -1,45 +1,7 @@
 //! NAPI bindings for a `node:buffer`-compatible API.
-//!
-//! This module mirrors the public surface of Node's `node:buffer` module:
-//!
-//! * The `Buffer` class — a fixed-length byte sequence backed by a `Vec<u8>`.
-//!   It exposes the `alloc` / `allocUnsafe` / `allocUnsafeSlow` / `from` /
-//!   `concat` / `byteLength` / `stringLength` / `compare` / `copyBytesFrom` /
-//!   `isBuffer` / `isEncoding` statics and the instance helpers
-//!   `read*` / `write*` (offset-based, including the 48-bit `BE`/`LE` variants),
-//!   `fill`, `equals`, `compare`, `copy`, `slice`, `subarray`, `swap16/32/64`,
-//!   `toString`, `toJSON`, `indexOf`, `lastIndexOf`, `includes`, `keys`,
-//!   `values`, `entries`, `reverse`, plus the `.length` / `.buffer` /
-//!   `.byteOffset` / `.parent` views.
-//! * The `Blob` and `File` classes.
-//! * Module-level helpers: `atob`, `btoa`, `isAscii`, `isUtf8`, `isLatin1`,
-//!   `transcode`, `resolveObjectURL`, the `constants` object and the
-//!   `kMaxLength` / `kStringMaxLength` / `INSPECT_MAX_BYTES` / `poolSize`
-//!   properties.
-//!
-//! ## NAPI mapping notes
-//! * napi-rs v3.13.0 does **not** implement `FromNapiValue` for `u64`/`i64`/
-//!   `u128`/`i128`/`f32`, so the 64-bit methods take/return `BigInt` (via
-//!   `napi::bindgen_prelude::BigInt`) and the float methods take `f64`. The
-//!   48-bit `read/writeUIntBE/LE`/`IntBE/LE` take/return `f64` (exact for up to
-//!   53 bits).
-//! * `ArrayBuffer`, `TypedArray` and `DataView` are accepted as inputs (via the
-//!   low-level `napi_*` type checks) and `ArrayBuffer` / `Buffer` are produced
-//!   as outputs, so this module interoperates with the rest of the TypedArray
-//!   ecosystem.
-//!
-//! ## Known limitations vs. real `node:buffer`
-//! * Instances of this `Buffer` are **not** `Uint8Array` subclasses (napi-rs
-//!   cannot subclass `Uint8Array` from a custom class). Therefore `buf[i]`,
-//!   `for..of buf`, `buf instanceof Uint8Array`, and the `Buffer.prototype`
-//!   methods being callable on plain `Uint8Array`s are not supported. Use the
-//!   explicit methods (`readUInt8`, `write`, `slice`, …) instead. The `.buffer`
-//!   view hands back a *copy* as a real `Buffer`/`ArrayBuffer`.
-//! * `blob.stream()` / `blob.textStream()` are not implemented (no stream
-//!   binding); `arrayBuffer` / `bytes` / `text` / `slice` are synchronous
-//!   (rather than returning a `Promise`) for simplicity.
 
 use std::ptr::{self, NonNull};
+use std::ffi::CString;
 
 use napi::bindgen_prelude::{
   ArrayBuffer, BigInt, Buffer as JsBuffer, Env, FromNapiValue, JsValue, Object, Unknown,
@@ -48,20 +10,13 @@ use napi::sys;
 use napi::{check_status, Error, Result, Status};
 use napi_derive::napi;
 
-/// Extracts the raw `napi_value` from an `Unknown` (the `NapiRaw` trait is not
-/// re-exported publicly, so we go through the public `JsValue`/`Value` API).
 fn raw_of(u: &Unknown) -> sys::napi_value {
   JsValue::value(u).value
 }
 
-/// Safe wrapper around the `unsafe` `FromNapiValue::from_napi_value`.
 fn conv<T: FromNapiValue>(env: &Env, v: sys::napi_value) -> Result<T> {
   unsafe { T::from_napi_value(env.raw(), v) }
 }
-
-// ===========================================================================
-// Constants
-// ===========================================================================
 
 const MAX_LENGTH: u32 = 0x7fff_ffff;
 const MAX_STRING_LENGTH: u32 = 0x1ffff_fe8;
@@ -73,19 +28,13 @@ const SUPPORTED_ENCODINGS: &[&str] = &[
   "base64url",
 ];
 
-// ===========================================================================
-// Encoding helpers (utf8 / ascii / latin1 / utf16le / hex / base64).
-// ===========================================================================
-
 fn str_to_bytes(s: &str, enc: &str) -> Result<Vec<u8>> {
   match enc.to_ascii_lowercase().as_str() {
     "utf8" | "utf-8" => Ok(s.as_bytes().to_vec()),
-    "ascii" => {
-      if s.bytes().any(|b| b > 127) {
-        return Err(Error::new(Status::InvalidArg, "invalid ASCII string"));
-      }
-      Ok(s.as_bytes().to_vec())
-    }
+    "ascii" => Ok(s.chars().map(|c| {
+      let code = c as u32;
+      if code > 127 { (code & 0x7f) as u8 } else { code as u8 }
+    }).collect()),
     "latin1" | "binary" => Ok(s.chars().map(|c| c as u8).collect()),
     "utf16le" | "ucs2" | "ucs-2" => {
       let mut out = Vec::with_capacity(s.len() * 2);
@@ -108,12 +57,7 @@ fn bytes_to_str(b: &[u8], enc: &str) -> Result<String> {
   match enc.to_ascii_lowercase().as_str() {
     "utf8" | "utf-8" => String::from_utf8(b.to_vec())
       .map_err(|_| Error::new(Status::InvalidArg, "invalid UTF-8 bytes")),
-    "ascii" => {
-      if b.iter().any(|x| *x > 127) {
-        return Err(Error::new(Status::InvalidArg, "invalid ASCII bytes"));
-      }
-      Ok(b.iter().map(|x| *x as char).collect())
-    }
+    "ascii" => Ok(b.iter().map(|&x| (x & 0x7f) as char).collect()),
     "latin1" | "binary" => Ok(b.iter().map(|x| *x as char).collect()),
     "utf16le" | "ucs2" | "ucs-2" => {
       if b.len() % 2 != 0 {
@@ -244,10 +188,6 @@ fn encode_base64(b: &[u8], url: bool) -> String {
   s
 }
 
-// ===========================================================================
-// Low-level JS value inspection for ArrayBuffer / TypedArray / DataView.
-// ===========================================================================
-
 unsafe fn inspect_typedarray(
   env: &Env,
   v: sys::napi_value,
@@ -261,8 +201,6 @@ unsafe fn inspect_typedarray(
     sys::napi_get_typedarray_info(env.raw(), v, &mut ta_type, &mut len, &mut data, &mut ab, &mut boff),
     "Failed to read TypedArray info"
   )?;
-  // napi_typedarray_type numbering: int8=0 uint8=1 uint8clamped=2 int16=3
-  // uint16=4 int32=5 uint32=6 float32=7 float64=8 bigint64=9 biguint64=10
   let elem = match ta_type {
     0 | 1 | 2 => 1,
     3 | 4 => 2,
@@ -287,12 +225,11 @@ unsafe fn dataview_bytes(env: &Env, v: sys::napi_value) -> Result<(NonNull<u8>, 
   Ok((ptr, len))
 }
 
-/// Copies the underlying bytes of a Buffer / TypedArray / DataView / ArrayBuffer.
 fn get_bytes(env: &Env, v: sys::napi_value) -> Result<Vec<u8>> {
   let mut b = false;
   check_status!(unsafe { sys::napi_is_buffer(env.raw(), v, &mut b) })?;
   if b {
-    let buf = conv::<JsBuffer>(env, v);
+    let buf = conv::<JsBuffer>(env, v)?;
     return Ok(buf.as_ref().to_vec());
   }
   let mut t = false;
@@ -312,16 +249,38 @@ fn get_bytes(env: &Env, v: sys::napi_value) -> Result<Vec<u8>> {
   let mut a = false;
   check_status!(unsafe { sys::napi_is_arraybuffer(env.raw(), v, &mut a) })?;
   if a {
-    let ab = conv::<ArrayBuffer>(env, v);
+    let ab = conv::<ArrayBuffer>(env, v)?;
     return Ok(ab.to_vec());
   }
+
+  // Try calling .bytes() if it is an object (our custom Buffer / Blob / File class)
+  let bytes_fn_name = CString::new("bytes").unwrap();
+  let mut bytes_prop = ptr::null_mut();
+  let status = unsafe {
+    sys::napi_get_named_property(env.raw(), v, bytes_fn_name.as_ptr(), &mut bytes_prop)
+  };
+  if status == sys::Status::napi_ok && !bytes_prop.is_null() {
+    let mut val_type = 0;
+    if unsafe { sys::napi_typeof(env.raw(), bytes_prop, &mut val_type) } == sys::Status::napi_ok
+      && val_type == sys::ValueType::napi_function
+    {
+      let mut call_res = ptr::null_mut();
+      if unsafe { sys::napi_call_function(env.raw(), v, bytes_prop, 0, ptr::null(), &mut call_res) } == sys::Status::napi_ok {
+        let mut is_buf_res = false;
+        if unsafe { sys::napi_is_buffer(env.raw(), call_res, &mut is_buf_res) } == sys::Status::napi_ok && is_buf_res {
+          let buf = conv::<JsBuffer>(env, call_res)?;
+          return Ok(buf.as_ref().to_vec());
+        }
+      }
+    }
+  }
+
   Err(Error::new(
     Status::InvalidArg,
     "expected a Buffer, TypedArray, DataView or ArrayBuffer",
   ))
 }
 
-/// `Buffer.from(typedArray)` copies one byte per element (the low byte).
 fn typedarray_low_bytes(env: &Env, v: sys::napi_value) -> Result<Vec<u8>> {
   let (ptr, len, boff, elem) = unsafe { inspect_typedarray(env, v)? };
   let total = boff + len * elem;
@@ -348,10 +307,6 @@ fn unknown_to_string(env: &Env, v: Unknown) -> Option<String> {
   conv::<String>(env, raw_of(&v)).ok()
 }
 
-// ===========================================================================
-// `Buffer` — node:buffer-compatible byte buffer.
-// ===========================================================================
-
 #[napi]
 pub struct Buffer {
   data: Vec<u8>,
@@ -359,7 +314,6 @@ pub struct Buffer {
 
 #[napi]
 impl Buffer {
-  /// Creates a zero-filled buffer of `length` bytes (equivalent to `new Buffer(length)`).
   #[napi(constructor)]
   pub fn new(length: u32) -> Self {
     Self {
@@ -367,7 +321,6 @@ impl Buffer {
     }
   }
 
-  /// Allocates a zero-filled buffer of `size` bytes, optionally filled.
   #[napi]
   pub fn alloc(env: Env, size: u32, fill: Option<Unknown>, encoding: Option<String>) -> Result<Buffer> {
     let mut b = Buffer {
@@ -375,10 +328,10 @@ impl Buffer {
     };
     if let Some(v) = fill {
       let raw = raw_of(&v);
-      if let Ok(n) = conv::<f64>(env, raw) {
+      if let Ok(n) = conv::<f64>(&env, raw) {
         let byte = ((n as i32) & 0xff) as u8;
         b.data.iter_mut().for_each(|x| *x = byte);
-      } else if let Ok(s) = conv::<String>(env, raw) {
+      } else if let Ok(s) = conv::<String>(&env, raw) {
         let enc = encoding.unwrap_or_else(|| "utf8".to_string());
         let bytes = str_to_bytes(&s, &enc)?;
         if !bytes.is_empty() {
@@ -386,7 +339,7 @@ impl Buffer {
             *x = bytes[i % bytes.len()];
           }
         }
-      } else if let Ok(buf) = conv::<JsBuffer>(env, raw) {
+      } else if let Ok(buf) = conv::<JsBuffer>(&env, raw) {
         let bytes = buf.as_ref();
         if !bytes.is_empty() {
           for (i, x) in b.data.iter_mut().enumerate() {
@@ -398,22 +351,16 @@ impl Buffer {
     Ok(b)
   }
 
-  /// Allocates an uninitialized buffer of `size` bytes.
-  ///
-  /// For safety this still zero-fills (napi cannot hand back truly uninitialized
-  /// memory across the FFI boundary).
   #[napi(js_name = "allocUnsafe")]
-  pub fn alloc_unsafe(size: u32, _alignment: Option<u32>) -> Buffer {
+  pub fn alloc_unsafe(size: u32) -> Buffer {
     Buffer::new(size)
   }
 
-  /// Like `allocUnsafe` but never uses the internal pool.
   #[napi(js_name = "allocUnsafeSlow")]
-  pub fn alloc_unsafe_slow(size: u32, _alignment: Option<u32>) -> Buffer {
+  pub fn alloc_unsafe_slow(size: u32) -> Buffer {
     Buffer::new(size)
   }
 
-  /// Creates a buffer by copying an existing Node `Buffer`.
   #[napi(factory)]
   pub fn from_buffer(buffer: JsBuffer) -> Buffer {
     Buffer {
@@ -421,14 +368,10 @@ impl Buffer {
     }
   }
 
-  /// The node:buffer `Buffer.from(...)` overload dispatcher.
-  ///
-  /// Supports: string (with optional encoding), ArrayBuffer (with byteOffset /
-  /// length), TypedArray, DataView, Buffer / Uint8Array, and plain Arrays.
   #[napi(js_name = "from")]
   pub fn from(env: Env, value: Unknown, arg1: Option<Unknown>, arg2: Option<Unknown>) -> Result<Buffer> {
     let raw = raw_of(&value);
-    if let Ok(s) = conv::<String>(env, raw) {
+    if let Ok(s) = conv::<String>(&env, raw) {
       let enc = arg1
         .and_then(|u| unknown_to_string(&env, u))
         .unwrap_or_else(|| "utf8".to_string());
@@ -454,7 +397,7 @@ impl Buffer {
     let mut is_ab = false;
     check_status!(unsafe { sys::napi_is_arraybuffer(env.raw(), raw, &mut is_ab) })?;
     if is_ab {
-      let ab = conv::<ArrayBuffer>(env, raw);
+      let ab = conv::<ArrayBuffer>(&env, raw)?;
       let total = ab.len();
       let off = arg1
         .as_ref()
@@ -473,7 +416,7 @@ impl Buffer {
     let mut is_buf = false;
     check_status!(unsafe { sys::napi_is_buffer(env.raw(), raw, &mut is_buf) })?;
     if is_buf {
-      let buf = conv::<JsBuffer>(env, raw);
+      let buf = conv::<JsBuffer>(&env, raw)?;
       return Ok(Buffer {
         data: buf.as_ref().to_vec(),
       });
@@ -481,66 +424,69 @@ impl Buffer {
     let mut is_arr = false;
     check_status!(unsafe { sys::napi_is_array(env.raw(), raw, &mut is_arr) })?;
     if is_arr {
-      let arr: Vec<Unknown> = conv::<Vec<Unknown>>(env, raw)?;
+      let arr: Vec<Unknown> = conv::<Vec<Unknown>>(&env, raw)?;
       let data: Vec<u8> = arr.into_iter().map(|u| unknown_to_byte(&env, u)).collect();
       return Ok(Buffer { data });
     }
+
+    if let Ok(bytes) = get_bytes(&env, raw) {
+      return Ok(Buffer { data: bytes });
+    }
+
     Err(Error::new(
       Status::InvalidArg,
       "Buffer.from: unsupported value",
     ))
   }
 
-  /// The number of bytes in the buffer.
   #[napi(getter)]
   pub fn length(&self) -> u32 {
     self.data.len() as u32
   }
 
-  /// A view of the buffer's backing memory (a real `Buffer` copy).
   #[napi(getter)]
   pub fn buffer(&self) -> JsBuffer {
     JsBuffer::from(self.data.clone())
   }
 
-  /// The byte offset of the buffer's backing memory (always 0 here).
   #[napi(getter)]
   pub fn byte_offset(&self) -> u32 {
     0
   }
 
-  /// Alias of `.buffer`.
   #[napi(getter)]
   pub fn parent(&self) -> JsBuffer {
     JsBuffer::from(self.data.clone())
   }
 
-  /// Concatenates a list of buffers into one.
   #[napi]
-  pub fn concat(list: Vec<JsBuffer>, total_length: Option<u32>) -> Buffer {
-    let total = total_length.unwrap_or_else(|| {
-      list.iter().map(|b| b.as_ref().len() as u32).sum()
-    }) as usize;
-    let mut out = Vec::with_capacity(total);
-    for b in &list {
-      out.extend_from_slice(b.as_ref());
+  pub fn concat(env: Env, list: Vec<Unknown>, total_length: Option<u32>) -> Result<Buffer> {
+    let mut all_bytes = Vec::new();
+    for item in list {
+      let bytes = get_bytes(&env, raw_of(&item))?;
+      all_bytes.extend_from_slice(&bytes);
     }
-    out.truncate(total);
-    Buffer { data: out }
+    if let Some(total) = total_length {
+      let t = total as usize;
+      if all_bytes.len() > t {
+        all_bytes.truncate(t);
+      } else if all_bytes.len() < t {
+        all_bytes.resize(t, 0);
+      }
+    }
+    Ok(Buffer { data: all_bytes })
   }
 
-  /// Returns the byte length of a string / buffer-like value.
   #[napi(js_name = "byteLength")]
   pub fn byte_length(env: Env, value: Unknown, encoding: Option<String>) -> Result<u32> {
     let raw = raw_of(&value);
-    if let Ok(s) = conv::<String>(env, raw) {
+    if let Ok(s) = conv::<String>(&env, raw) {
       let enc = encoding.unwrap_or_else(|| "utf8".to_string());
       return Ok(str_to_bytes(&s, &enc)?.len() as u32);
     }
     Ok(get_bytes(&env, raw)?.len() as u32)
   }
 
-  /// Returns the UTF-16 length that `toString(encoding)` would produce.
   #[napi(js_name = "stringLength")]
   pub fn string_length(env: Env, input: Unknown, encoding: Option<String>) -> Result<u32> {
     let bytes = get_bytes(&env, raw_of(&input))?;
@@ -549,13 +495,47 @@ impl Buffer {
     Ok(s.chars().count() as u32)
   }
 
-  /// Compares two buffers, returning -1, 0, or 1.
   #[napi]
-  pub fn compare(buf1: JsBuffer, buf2: JsBuffer) -> i32 {
-    buf1.as_ref().cmp(buf2.as_ref()) as i32
+  pub fn compare(env: Env, buf1: Unknown, buf2: Unknown) -> Result<i32> {
+    let b1 = get_bytes(&env, raw_of(&buf1))?;
+    let b2 = get_bytes(&env, raw_of(&buf2))?;
+    Ok(match b1.cmp(&b2) {
+      std::cmp::Ordering::Less => -1,
+      std::cmp::Ordering::Equal => 0,
+      std::cmp::Ordering::Greater => 1,
+    })
   }
 
-  /// Copies the underlying bytes of a TypedArray into a new Buffer.
+  #[napi(js_name = "compare")]
+  pub fn compare_instance(
+    &self,
+    env: Env,
+    target: Unknown,
+    target_start: Option<u32>,
+    target_end: Option<u32>,
+    source_start: Option<u32>,
+    source_end: Option<u32>,
+  ) -> Result<i32> {
+    let tb = get_bytes(&env, raw_of(&target))?;
+    let ts = target_start.unwrap_or(0) as usize;
+    let te = target_end.unwrap_or(tb.len() as u32) as usize;
+    let ss = source_start.unwrap_or(0) as usize;
+    let se = source_end.unwrap_or(self.data.len() as u32) as usize;
+
+    if ts > te || te > tb.len() || ss > se || se > self.data.len() {
+      return Err(Error::new(Status::InvalidArg, "ERR_OUT_OF_RANGE"));
+    }
+
+    let slice_source = &self.data[ss..se];
+    let slice_target = &tb[ts..te];
+
+    Ok(match slice_source.cmp(slice_target) {
+      std::cmp::Ordering::Less => -1,
+      std::cmp::Ordering::Equal => 0,
+      std::cmp::Ordering::Greater => 1,
+    })
+  }
+
   #[napi(js_name = "copyBytesFrom")]
   pub fn copy_bytes_from(env: Env, view: Unknown, offset: Option<u32>, length: Option<u32>) -> Result<Buffer> {
     let raw = raw_of(&view);
@@ -576,28 +556,26 @@ impl Buffer {
         data: slice[start..end].to_vec(),
       });
     }
-    let buf = conv::<JsBuffer>(env, raw);
+    let buf = conv::<JsBuffer>(&env, raw)?;
     Ok(Buffer {
       data: buf.as_ref().to_vec(),
     })
   }
 
-  /// Returns true if `value` is a Node `Buffer`. Note: instances of this class
-  /// are not Node `Buffer`s, so this returns false for them.
   #[napi(js_name = "isBuffer")]
   pub fn is_buffer(env: Env, value: Unknown) -> bool {
+    let raw = raw_of(&value);
     let mut b = false;
-    let _ = unsafe { sys::napi_is_buffer(env.raw(), raw_of(&value), &mut b) };
-    b
+    if unsafe { sys::napi_is_buffer(env.raw(), raw, &mut b) } == sys::Status::napi_ok && b {
+      return true;
+    }
+    false
   }
 
-  /// Returns true if `encoding` is a supported encoding name.
   #[napi(js_name = "isEncoding")]
   pub fn is_encoding(encoding: String) -> bool {
     SUPPORTED_ENCODINGS.contains(&encoding.to_ascii_lowercase().as_str())
   }
-
-  // --- bounds helper -----------------------------------------------------
 
   fn check(&self, off: usize, n: usize) -> Result<()> {
     if off
@@ -619,8 +597,6 @@ impl Buffer {
   fn ro(&self, off: Option<u32>) -> usize {
     off.unwrap_or(0) as usize
   }
-
-  // --- unsigned / signed integer reads ----------------------------------
 
   #[napi(js_name = "readUInt8")]
   pub fn read_uint8(&self, offset: Option<u32>) -> Result<u32> {
@@ -795,8 +771,6 @@ impl Buffer {
     Ok(BigInt::from(i64::from_be_bytes(b)))
   }
 
-  // --- 48-bit reads ------------------------------------------------------
-
   #[napi(js_name = "readUIntBE")]
   pub fn read_uint_be(&self, offset: u32, byte_length: u32) -> Result<f64> {
     let o = offset as usize;
@@ -870,8 +844,6 @@ impl Buffer {
     let signed = ((val << shift) as i64) >> shift;
     Ok(signed as f64)
   }
-
-  // --- unsigned / signed integer writes ----------------------------------
 
   #[napi(js_name = "writeUInt8")]
   pub fn write_uint8(&mut self, value: u32, offset: Option<u32>) -> Result<u32> {
@@ -1056,8 +1028,6 @@ impl Buffer {
     Ok((o + 8) as u32)
   }
 
-  // --- 48-bit writes -----------------------------------------------------
-
   #[napi(js_name = "writeUIntBE")]
   pub fn write_uint_be(&mut self, value: f64, offset: u32, byte_length: u32) -> Result<u32> {
     self.write_uint_be_inner(value as u64, offset, byte_length, false)
@@ -1111,35 +1081,53 @@ impl Buffer {
     self.write_uint_be_inner(u, offset, byte_length, le)
   }
 
-  // --- string read / write ----------------------------------------------
-
-  /// Writes `string` into the buffer at `offset` (optionally limiting to
-  /// `length` bytes) using `encoding`. Returns the number of bytes written.
   #[napi]
   pub fn write(
     &mut self,
+    env: Env,
     string: String,
-    offset: Option<u32>,
-    length: Option<u32>,
-    encoding: Option<String>,
+    arg1: Option<Unknown>,
+    arg2: Option<Unknown>,
+    arg3: Option<String>,
   ) -> Result<u32> {
-    let enc = encoding.unwrap_or_else(|| "utf8".to_string());
-    let bytes = str_to_bytes(&string, &enc)?;
-    let o = self.ro(offset);
-    if o > self.data.len() {
+    let mut offset: usize = 0;
+    let mut length: Option<usize> = None;
+    let mut encoding = "utf8".to_string();
+
+    if let Some(ref a1) = arg1 {
+      let raw1 = raw_of(a1);
+      if let Ok(n) = conv::<f64>(&env, raw1) {
+        offset = n as usize;
+        if let Some(ref a2) = arg2 {
+          let raw2 = raw_of(a2);
+          if let Ok(n2) = conv::<f64>(&env, raw2) {
+            length = Some(n2 as usize);
+            if let Some(s3) = arg3 {
+              encoding = s3;
+            }
+          } else if let Ok(s2) = conv::<String>(&env, raw2) {
+            encoding = s2;
+          }
+        }
+      } else if let Ok(s1) = conv::<String>(&env, raw1) {
+        encoding = s1;
+      }
+    }
+
+    let bytes = str_to_bytes(&string, &encoding)?;
+    if offset > self.data.len() {
       return Err(Error::new(
         Status::GenericFailure,
-        format!("offset {o} out of range (length {})", self.data.len()),
+        format!("offset {offset} out of range (length {})", self.data.len()),
       ));
     }
-    let max = self.data.len() - o;
-    let want = length.unwrap_or(bytes.len() as u32).min(bytes.len() as u32);
-    let n = want.min(max as u32) as usize;
-    self.data[o..o + n].copy_from_slice(&bytes[..n]);
+    let max = self.data.len() - offset;
+    let want = length.unwrap_or(bytes.len()).min(bytes.len());
+    let n = want.min(max);
+    self.data[offset..offset + n].copy_from_slice(&bytes[..n]);
     Ok(n as u32)
   }
 
-  /// Decodes the buffer (or `start..end`) using `encoding`.
   #[napi(js_name = "toString")]
   pub fn to_string(&self, encoding: Option<String>, start: Option<u32>, end: Option<u32>) -> Result<String> {
     let enc = encoding.unwrap_or_else(|| "utf8".to_string());
@@ -1151,7 +1139,6 @@ impl Buffer {
     bytes_to_str(&self.data[s..e], &enc)
   }
 
-  /// Returns a JSON-compatible representation `{ type: "Buffer", data: [...] }`.
   #[napi(js_name = "toJSON")]
   pub fn to_json(&self) -> BufferJson {
     BufferJson {
@@ -1160,36 +1147,30 @@ impl Buffer {
     }
   }
 
-  // --- views / comparison ------------------------------------------------
-
-  /// Returns a copy of the bytes in `start..end` as a real Node `Buffer`.
   #[napi]
   pub fn slice(&self, start: Option<i64>, end: Option<i64>) -> Result<JsBuffer> {
     let (s, e) = self.clamp_range(start, end)?;
     Ok(JsBuffer::from(&self.data[s..e]))
   }
 
-  /// Alias of `slice` (Node's `subarray` shares memory; here it copies).
   #[napi]
   pub fn subarray(&self, start: Option<i64>, end: Option<i64>) -> Result<JsBuffer> {
     self.slice(start, end)
   }
 
-  /// Returns a copy of all written bytes as a real Node `Buffer`.
   #[napi]
   pub fn bytes(&self) -> JsBuffer {
     JsBuffer::from(self.data.as_slice())
   }
 
-  /// Fills `value` (number, string, or buffer) over `start..end`.
   #[napi]
   pub fn fill(&mut self, env: Env, value: Unknown, start: Option<u32>, end: Option<u32>, encoding: Option<String>) -> Result<()> {
     let (s, e) = self.range_u(start, end)?;
     let raw = raw_of(&value);
-    if let Ok(n) = conv::<f64>(env, raw) {
+    if let Ok(n) = conv::<f64>(&env, raw) {
       let byte = ((n as i32) & 0xff) as u8;
       self.data[s..e].iter_mut().for_each(|x| *x = byte);
-    } else if let Ok(s2) = conv::<String>(env, raw) {
+    } else if let Ok(s2) = conv::<String>(&env, raw) {
       let enc = encoding.unwrap_or_else(|| "utf8".to_string());
       let bytes = str_to_bytes(&s2, &enc)?;
       if bytes.is_empty() {
@@ -1212,38 +1193,37 @@ impl Buffer {
     Ok(())
   }
 
-  /// Returns true if the bytes equal `other`.
   #[napi]
-  pub fn equals(&self, other: JsBuffer) -> bool {
-    self.data == other.as_ref()
+  pub fn equals(&self, env: Env, other: Unknown) -> Result<bool> {
+    let ob = get_bytes(&env, raw_of(&other))?;
+    Ok(self.data == ob)
   }
 
-  /// Lexicographic comparison with `other`: -1, 0, or 1.
   #[napi]
-  pub fn compare_with(&self, other: JsBuffer) -> i32 {
-    self.data.as_slice().cmp(other.as_ref()) as i32
-  }
-
-  /// Copies bytes from this buffer into `target`. Returns the number copied.
-  #[napi]
-  pub fn copy(&self, mut target: JsBuffer, target_start: Option<u32>, source_start: Option<u32>, source_end: Option<u32>) -> Result<u32> {
-    let ts = target_start.unwrap_or(0) as usize;
-    let ss = source_start.unwrap_or(0) as usize;
-    let se = source_end.unwrap_or(self.data.len() as u32) as usize;
-    let se = se.min(self.data.len());
-    let tlen = target.as_ref().len();
-    if ss > se || se > self.data.len() || ts > tlen {
-      return Err(Error::new(
-        Status::GenericFailure,
-        "copy: out of range",
-      ));
+  pub fn copy(&self, env: Env, target: Unknown, target_start: Option<u32>, source_start: Option<u32>, source_end: Option<u32>) -> Result<u32> {
+    let mut is_buf = false;
+    let raw = raw_of(&target);
+    check_status!(unsafe { sys::napi_is_buffer(env.raw(), raw, &mut is_buf) })?;
+    if is_buf {
+      let mut target_buf = conv::<JsBuffer>(&env, raw)?;
+      let ts = target_start.unwrap_or(0) as usize;
+      let ss = source_start.unwrap_or(0) as usize;
+      let se = source_end.unwrap_or(self.data.len() as u32) as usize;
+      let se = se.min(self.data.len());
+      let tlen = target_buf.as_ref().len();
+      if ss > se || se > self.data.len() || ts > tlen {
+        return Err(Error::new(
+          Status::GenericFailure,
+          "copy: out of range",
+        ));
+      }
+      let n = (se - ss).min(tlen - ts);
+      target_buf.as_mut()[ts..ts + n].copy_from_slice(&self.data[ss..ss + n]);
+      return Ok(n as u32);
     }
-    let n = (se - ss).min(tlen - ts);
-    target.as_mut()[ts..ts + n].copy_from_slice(&self.data[ss..ss + n]);
-    Ok(n as u32)
+    Err(Error::new(Status::InvalidArg, "target must be a Buffer"))
   }
 
-  /// Returns the index of `value`, or -1.
   #[napi(js_name = "indexOf")]
   pub fn index_of(&self, env: Env, value: Unknown, byte_offset: Option<u32>, end: Option<u32>, encoding: Option<String>) -> Result<i32> {
     let pat = self.search_pattern(&env, value, encoding)?;
@@ -1253,7 +1233,6 @@ impl Buffer {
     Ok(self.search_from(o, e, &pat, false))
   }
 
-  /// Returns the last index of `value`, or -1.
   #[napi(js_name = "lastIndexOf")]
   pub fn last_index_of(&self, env: Env, value: Unknown, byte_offset: Option<u32>, end: Option<u32>, encoding: Option<String>) -> Result<i32> {
     let pat = self.search_pattern(&env, value, encoding)?;
@@ -1266,19 +1245,16 @@ impl Buffer {
     Ok(self.search_from(o, e, &pat, true))
   }
 
-  /// Returns true if `value` was found.
   #[napi]
   pub fn includes(&self, env: Env, value: Unknown, byte_offset: Option<u32>, end: Option<u32>, encoding: Option<String>) -> Result<bool> {
     Ok(self.index_of(env, value, byte_offset, end, encoding)? >= 0)
   }
 
-  /// Reverses the buffer in place.
   #[napi]
   pub fn reverse(&mut self) {
     self.data.reverse();
   }
 
-  /// Swaps the byte order of each 16-bit word in place.
   #[napi]
   pub fn swap16(&mut self) -> Result<()> {
     self.swap_n::<2>()
@@ -1294,19 +1270,16 @@ impl Buffer {
     self.swap_n::<8>()
   }
 
-  /// Iterator of indices (substitute for the JS iterator; returns an array).
   #[napi]
   pub fn keys(&self) -> Vec<u32> {
     (0..self.data.len() as u32).collect()
   }
 
-  /// Iterator of byte values (substitute for the JS iterator; returns an array).
   #[napi]
   pub fn values(&self) -> Vec<u32> {
     self.data.iter().map(|b| *b as u32).collect()
   }
 
-  /// Iterator of [index, byte] pairs (substitute for the JS iterator).
   #[napi]
   pub fn entries(&self) -> Vec<(u32, u32)> {
     self
@@ -1316,8 +1289,6 @@ impl Buffer {
       .map(|(i, b)| (i as u32, *b as u32))
       .collect()
   }
-
-  // --- internal helpers --------------------------------------------------
 
   fn clamp_range(&self, start: Option<i64>, end: Option<i64>) -> Result<(usize, usize)> {
     let len = self.data.len() as i64;
@@ -1366,10 +1337,10 @@ impl Buffer {
 
   fn search_pattern(&self, env: &Env, value: Unknown, encoding: Option<String>) -> Result<SearchValue> {
     let raw = raw_of(&value);
-    if let Ok(n) = conv::<f64>(env, raw) {
+    if let Ok(n) = conv::<f64>(&env, raw) {
       return Ok(SearchValue::Number(((n as i32) & 0xff) as u8));
     }
-    if let Ok(s) = conv::<String>(env, raw) {
+    if let Ok(s) = conv::<String>(&env, raw) {
       let enc = encoding.unwrap_or_else(|| "utf8".to_string());
       return Ok(SearchValue::Bytes(str_to_bytes(&s, &enc)?));
     }
@@ -1415,19 +1386,11 @@ enum SearchValue {
   Bytes(Vec<u8>),
 }
 
-// ===========================================================================
-// `to_json` return type.
-// ===========================================================================
-
 #[napi(object)]
 pub struct BufferJson {
   pub r#type: String,
   pub data: Vec<u32>,
 }
-
-// ===========================================================================
-// Blob / File
-// ===========================================================================
 
 #[napi(object)]
 pub struct BlobOptions {
@@ -1446,13 +1409,11 @@ fn collect_blob_parts(env: &Env, sources: Vec<Unknown>) -> Result<Vec<u8>> {
   let mut out = Vec::new();
   for src in sources {
     let raw = raw_of(&src);
-    if let Ok(s) = conv::<String>(env, raw) {
+    if let Ok(s) = conv::<String>(&env, raw) {
       out.extend_from_slice(s.as_bytes());
       continue;
     }
     let mut is_blob = false;
-    // A `Blob` instance we created is just an object; detect via class name is
-    // brittle, so accept Buffer/TypedArray/DataView/ArrayBuffer uniformly.
     let mut is_buf = false;
     check_status!(unsafe { sys::napi_is_buffer(env.raw(), raw, &mut is_buf) })?;
     let mut is_ta = false;
@@ -1464,7 +1425,6 @@ fn collect_blob_parts(env: &Env, sources: Vec<Unknown>) -> Result<Vec<u8>> {
     if is_buf || is_ta || is_dv || is_ab {
       out.extend_from_slice(&get_bytes(env, raw)?);
     } else {
-      // Treat unknown sources as an object's string coercion (best effort).
       let _ = &mut is_blob;
     }
   }
@@ -1479,8 +1439,6 @@ pub struct Blob {
 
 #[napi]
 impl Blob {
-  /// Creates a Blob from a list of string / ArrayBuffer / TypedArray /
-  /// DataView / Blob parts.
   #[napi(constructor)]
   pub fn new(env: Env, sources: Vec<Unknown>, options: Option<BlobOptions>) -> Result<Blob> {
     let data = collect_blob_parts(&env, sources)?;
@@ -1488,27 +1446,23 @@ impl Blob {
     Ok(Blob { data, r#type })
   }
 
-  /// Returns a copy of the Blob's data as an ArrayBuffer.
   #[napi(js_name = "arrayBuffer")]
   pub fn array_buffer(&self, env: Env) -> Result<ArrayBuffer> {
     ArrayBuffer::from_data(&env, self.data.clone())
   }
 
-  /// Returns a copy of the Blob's data as a Buffer.
   #[napi]
   pub fn bytes(&self) -> JsBuffer {
     JsBuffer::from(self.data.clone())
   }
 
-  /// Returns the Blob's data decoded as UTF-8.
   #[napi]
   pub fn text(&self) -> String {
     String::from_utf8(self.data.clone()).unwrap_or_default()
   }
 
-  /// Creates a new Blob containing a subset of this Blob's data.
   #[napi]
-  pub fn slice(&self, start: Option<i64>, end: Option<i64>, r#type: Option<String>) -> Blob {
+  pub fn slice(&self, start: Option<i64>, end: Option<i64>, slice_type: Option<String>) -> Blob {
     let len = self.data.len() as i64;
     let mut s = start.unwrap_or(0);
     if s < 0 {
@@ -1527,20 +1481,18 @@ impl Blob {
     if s > e {
       s = e;
     }
-    let r#type = r#type.unwrap_or_else(|| self.r#type.clone());
+    let r#type = slice_type.unwrap_or_else(|| self.r#type.clone());
     Blob {
       data: self.data[s as usize..e as usize].to_vec(),
       r#type,
     }
   }
 
-  /// The total size of the Blob in bytes.
   #[napi(getter)]
   pub fn size(&self) -> u32 {
     self.data.len() as u32
   }
 
-  /// The content-type of the Blob.
   #[napi(getter, js_name = "type")]
   pub fn mime_type(&self) -> String {
     self.r#type.clone()
@@ -1557,7 +1509,6 @@ pub struct File {
 
 #[napi]
 impl File {
-  /// Creates a File from a list of parts plus a file name.
   #[napi(constructor)]
   pub fn new(
     env: Env,
@@ -1586,27 +1537,23 @@ impl File {
     })
   }
 
-  /// Returns a copy of the File's data as an ArrayBuffer.
   #[napi(js_name = "arrayBuffer")]
   pub fn array_buffer(&self, env: Env) -> Result<ArrayBuffer> {
     ArrayBuffer::from_data(&env, self.data.clone())
   }
 
-  /// Returns a copy of the File's data as a Buffer.
   #[napi]
   pub fn bytes(&self) -> JsBuffer {
     JsBuffer::from(self.data.clone())
   }
 
-  /// Returns the File's data decoded as UTF-8.
   #[napi]
   pub fn text(&self) -> String {
     String::from_utf8(self.data.clone()).unwrap_or_default()
   }
 
-  /// Creates a new File containing a subset of this File's data.
   #[napi]
-  pub fn slice(&self, start: Option<i64>, end: Option<i64>, r#type: Option<String>) -> File {
+  pub fn slice(&self, start: Option<i64>, end: Option<i64>, slice_type: Option<String>) -> File {
     let len = self.data.len() as i64;
     let mut s = start.unwrap_or(0);
     if s < 0 {
@@ -1629,72 +1576,57 @@ impl File {
       data: self.data[s as usize..e as usize].to_vec(),
       name: self.name.clone(),
       last_modified: self.last_modified,
-      r#type: r#type.unwrap_or_else(|| self.r#type.clone()),
+      r#type: slice_type.unwrap_or_else(|| self.r#type.clone()),
     }
   }
 
-  /// The name of the File.
   #[napi(getter)]
   pub fn name(&self) -> String {
     self.name.clone()
   }
 
-  /// The last modified time of the File (milliseconds since epoch).
   #[napi(getter, js_name = "lastModified")]
   pub fn last_modified(&self) -> f64 {
     self.last_modified
   }
 
-  /// The content-type of the File.
   #[napi(getter, js_name = "type")]
   pub fn mime_type(&self) -> String {
     self.r#type.clone()
   }
 
-  /// The total size of the File in bytes.
   #[napi(getter)]
   pub fn size(&self) -> u32 {
     self.data.len() as u32
   }
 }
 
-// ===========================================================================
-// Module-level helpers (`node:buffer` functions).
-// ===========================================================================
-
-/// Decodes a Base64 string into bytes and re-encodes those bytes as Latin-1.
 #[napi]
 pub fn atob(data: String) -> Result<String> {
   let bytes = decode_base64(&data, false)?;
   Ok(bytes.iter().map(|b| *b as char).collect())
 }
 
-/// Decodes a string as Latin-1 into bytes and encodes those bytes as Base64.
 #[napi]
 pub fn btoa(data: String) -> String {
   encode_base64(data.as_bytes(), false)
 }
 
-/// Returns true if `input` contains only ASCII bytes.
 #[napi(js_name = "isAscii")]
 pub fn is_ascii(env: Env, input: Unknown) -> Result<bool> {
   Ok(get_bytes(&env, raw_of(&input))?.iter().all(|b| *b < 128))
 }
 
-/// Returns true if `input` is valid UTF-8.
 #[napi(js_name = "isUtf8")]
 pub fn is_utf8(env: Env, input: Unknown) -> Result<bool> {
   Ok(std::str::from_utf8(&get_bytes(&env, raw_of(&input))?).is_ok())
 }
 
-/// Returns true if `input` is a valid WebIDL ByteString (every UTF-16 code unit
-/// is in U+0000..U+00FF).
 #[napi(js_name = "isLatin1")]
 pub fn is_latin1(input: String) -> bool {
   input.chars().all(|c| (c as u32) <= 0xff)
 }
 
-/// Re-encodes `source` from `from_encoding` to `to_encoding`.
 #[napi]
 pub fn transcode(env: Env, source: Unknown, from_encoding: String, to_encoding: String) -> Result<JsBuffer> {
   let bytes = get_bytes(&env, raw_of(&source))?;
@@ -1703,7 +1635,6 @@ pub fn transcode(env: Env, source: Unknown, from_encoding: String, to_encoding: 
   Ok(JsBuffer::from(out))
 }
 
-/// Resolves a `blob:nodedata:` URL into a Blob. Not supported in this binding.
 #[napi(js_name = "resolveObjectURL")]
 pub fn resolve_object_url(_id: String) -> Result<Blob> {
   Err(Error::new(
@@ -1712,19 +1643,12 @@ pub fn resolve_object_url(_id: String) -> Result<Blob> {
   ))
 }
 
-// ===========================================================================
-// Constants (attached as module properties via `module_exports`).
-// ===========================================================================
-
 #[napi(object)]
 pub struct BufferConstants {
   pub max_length: u32,
   pub max_string_length: u32,
 }
 
-/// Attaches the `node:buffer` constants (`constants`, `kMaxLength`,
-/// `kStringMaxLength`, `INSPECT_MAX_BYTES`, `poolSize`) onto the module
-/// exports object.
 #[napi(module_exports)]
 pub fn init(mut exports: Object) -> Result<()> {
   exports.set(
