@@ -1,7 +1,7 @@
 name: python
 owner: alloy-ts
 description:
-repositories: 
- - https://codeberg.org/alloy-ts/python
- - https://gitlab.com/alloy-ts/python
- - https://github.com/alloy-ts/python
+repositories:
+  - https://codeberg.org/alloy-ts/python
+  - https://gitlab.com/alloy-ts/python
+  - https://github.com/alloy-ts/python

@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { NapiCli } from "@napi-rs/cli";
 
 async function run() {
@@ -21,6 +23,15 @@ async function run() {
     crossCompile,
     useCross,
   });
+
+  if (fs.existsSync("./dist")) {
+    const files = fs.readdirSync("./dist");
+    for (const file of files) {
+      if (file.endsWith(".node")) {
+        fs.copyFileSync(path.join("./dist", file), path.join(".", file));
+      }
+    }
+  }
 }
 
 void run().catch((err) => {
