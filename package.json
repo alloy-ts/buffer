@@ -1,5 +1,5 @@
 {
-  "name": "@lib/module",
+  "name": "@alloy-ts/buffer",
   "version": "0.0.0",
   "files": [
     "dist",
@@ -13,12 +13,12 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "node build.js && vp pack",
-    "build:napi": "node build.js",
-    "build:release": "node build.js --release",
+    "build": "npx tsx build.ts && vp pack",
+    "build:napi": "npx tsx build.ts",
+    "build:release": "npx tsx build.ts --release",
     "dev": "vp pack --watch",
     "start": "vp run src/main.ts",
-    "test": "vp test && node --test test.cjs",
+    "test": "npx tsx build.ts && vp test",
     "check": "vp check",
     "fmt": "vp fmt",
     "lint": "vp lint",
