@@ -159,15 +159,6 @@ impl Bytes {
     Buffer::from(self.inner.as_ref())
   }
 
-  /// Returns a `Reader` that reads from this `Bytes`.
-  ///
-  /// This is the idiomatic equivalent of `Buf::reader(self)`; the reader owns
-  /// its own clone of the buffer, so this `Bytes` remains usable afterwards.
-  #[napi]
-  pub fn reader(&self) -> crate::reader::Reader {
-    crate::reader::Reader::from_inner(self.inner.clone())
-  }
-
   /// Returns a node:buffer-compatible `Buffer` (a copy) over this `Bytes`.
   ///
   /// The returned `Buffer` is an independent, writable copy, so this `Bytes`
@@ -178,24 +169,9 @@ impl Bytes {
   }
 }
 
-// Crate-internal accessors so sibling modules (e.g. `reader.rs`) can build a
-// `Reader` over the underlying `bytes::Bytes` without reaching into the
-// private field.
 impl Bytes {
+  #[allow(dead_code)]
   pub(crate) fn from_inner(inner: InnerBytes) -> Self {
     Self { inner }
   }
 }
-
-// --- Not bound (documented for completeness) -------------------------------
-//
-// * `Bytes::from_static(&'static [u8])` — requires `&'static` data that JS
-//   cannot provide without leaking memory, so it is intentionally omitted.
-//
-// * `Bytes::from_owner<T>(owner)` where `T: AsRef<[u8]> + Send + 'static` —
-//   needs a custom Rust-owned value (e.g. an `mmap`) as the owner; there is no
-//   JS-side type that can satisfy `Send + 'static` here.
-//
-// * `Bytes::slice_ref(&[u8])` — requires the argument to be a physical sub-slice
-//   of this buffer; JS `Buffer`s are independent allocations, so the invariant
-//   cannot be upheld from the JS side.
