@@ -8,7 +8,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 bytes = "1.12.1"
-napi = { version = "3", features = ["napi6"] }
+napi = { version = "3", features = ["napi6", "tokio_rt"] }
 napi-derive = "3"
 
 [build-dependencies]
