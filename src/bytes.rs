@@ -21,9 +21,11 @@
 //!   rather than bound.
 
 use bytes::Bytes as InnerBytes;
-use napi::bindgen_prelude::Buffer;
+use napi::bindgen_prelude::{Env, Unknown};
 use napi::{Error, Result, Status};
 use napi_derive::napi;
+
+use crate::buffer::{get_bytes, raw_of};
 
 #[napi]
 pub struct Bytes {
@@ -42,8 +44,9 @@ impl Bytes {
   ///
   /// Corresponds to `Bytes::copy_from_slice` / `Bytes::from(Vec<u8>)`.
   #[napi(factory)]
-  pub fn from_buffer(buffer: Buffer) -> Self {
-    Self { inner: InnerBytes::copy_from_slice(buffer.as_ref()) }
+  pub fn from_buffer(env: Env, buffer: Unknown) -> Result<Self> {
+    let bytes = get_bytes(&env, raw_of(&buffer))?;
+    Ok(Self { inner: InnerBytes::copy_from_slice(&bytes) })
   }
 
   /// Returns the number of bytes contained in this `Bytes`.
@@ -155,8 +158,8 @@ impl Bytes {
   /// This is a copy: napi-rs cannot hand out a zero-copy view that outlives
   /// the call. Use `slice`/`split_*` to share storage cheaply inside Rust.
   #[napi]
-  pub fn as_slice(&self) -> Buffer {
-    Buffer::from(self.inner.as_ref())
+  pub fn as_slice(&self) -> napi::bindgen_prelude::Buffer {
+    napi::bindgen_prelude::Buffer::from(self.inner.as_ref())
   }
 
   /// Returns a node:buffer-compatible `Buffer` (a copy) over this `Bytes`.
@@ -164,7 +167,7 @@ impl Bytes {
   /// The returned `Buffer` is an independent, writable copy, so this `Bytes`
   /// remains usable afterwards.
   #[napi]
-  pub fn buf(&self) -> Buffer {
+  pub fn buf(&self) -> napi::bindgen_prelude::Buffer {
     self.as_slice()
   }
 }

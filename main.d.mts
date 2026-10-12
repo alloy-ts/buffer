@@ -1,4 +1,4 @@
-//#region src/buffer.d.ts
+//#region src/main.d.ts
 export declare class Buffer extends Uint8Array {
   static poolSize: number;
   static isBuffer(obj: unknown): obj is Buffer;
@@ -113,7 +113,5 @@ export declare const INSPECT_MAX_BYTES: any;
 export declare const kMaxLength: any;
 export declare const kStringMaxLength: any;
 export declare function SlowBuffer(size: number): Buffer;
-//#endregion
-//#region src/main.d.ts
 export declare const main: () => string;
 //#endregion

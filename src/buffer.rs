@@ -25,7 +25,7 @@ use napi::{check_status, Error, Result, Status};
 use napi_derive::napi;
 
 /// Extracts the raw `napi_value` from an `Unknown`.
-fn raw_of(u: &Unknown) -> sys::napi_value {
+pub(crate) fn raw_of(u: &Unknown) -> sys::napi_value {
   JsValue::value(u).value
 }
 
@@ -249,7 +249,7 @@ unsafe fn dataview_bytes(env: &Env, v: sys::napi_value) -> Result<(NonNull<u8>, 
   Ok((ptr, len))
 }
 
-fn get_bytes(env: &Env, v: sys::napi_value) -> Result<Vec<u8>> {
+pub(crate) fn get_bytes(env: &Env, v: sys::napi_value) -> Result<Vec<u8>> {
   let mut b = false;
   check_status!(unsafe { sys::napi_is_buffer(env.raw(), v, &mut b) })?;
   if b {

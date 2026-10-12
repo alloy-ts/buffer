@@ -10,7 +10,7 @@
  *
  *   node --import @oxc-node/core/register examples/binary-io.ts
  */
-import { Buffer } from "../src/buffer.ts";
+import { Buffer } from "../src/main.ts";
 
 const log = (label: string, value: unknown): void => {
   console.log(`\x1b[36m${label}\x1b[0m`, value);

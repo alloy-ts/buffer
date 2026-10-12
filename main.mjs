@@ -14,18 +14,29 @@ var __exportAll = (all, no_symbols) => {
 //#region index.js
 var app_exports = /* @__PURE__ */ __exportAll({
 	Blob: () => Blob$1,
-	Buffer: () => Buffer$2,
 	Bytes: () => Bytes$1,
 	File: () => File$1,
 	__napiBindingTarget: () => __napiBindingTarget,
 	add: () => add,
 	atob: () => atob$1,
 	btoa: () => btoa$1,
+	bufByteLength: () => bufByteLength,
+	bufCompare: () => bufCompare,
+	bufConcat: () => bufConcat,
+	bufCopyBytesFrom: () => bufCopyBytesFrom,
+	bufDecode: () => bufDecode,
+	bufEncode: () => bufEncode,
+	bufFill: () => bufFill,
+	bufIncludes: () => bufIncludes,
+	bufIndexOf: () => bufIndexOf,
+	bufIsEncoding: () => bufIsEncoding,
+	bufLastIndexOf: () => bufLastIndexOf,
+	bufStringLength: () => bufStringLength,
+	bufWrite: () => bufWrite,
 	isAscii: () => isAscii$1,
 	isLatin1: () => isLatin1,
 	isUtf8: () => isUtf8$1,
 	resolveObjectURL: () => resolveObjectURL$1,
-	slowBuffer: () => slowBuffer,
 	transcode: () => transcode$1
 });
 const require = createRequire(import.meta.url);
@@ -581,10 +592,10 @@ if (!nativeBinding) {
 	}
 	throw new Error(`Failed to load native binding`);
 }
-const { Blob: Blob$1, Buffer: Buffer$2, Bytes: Bytes$1, File: File$1, add, atob: atob$1, btoa: btoa$1, isAscii: isAscii$1, isLatin1, isUtf8: isUtf8$1, resolveObjectURL: resolveObjectURL$1, slowBuffer, transcode: transcode$1 } = nativeBinding;
+const { Blob: Blob$1, Bytes: Bytes$1, File: File$1, add, atob: atob$1, btoa: btoa$1, bufByteLength, bufCompare, bufConcat, bufCopyBytesFrom, bufDecode, bufEncode, bufFill, bufIncludes, bufIndexOf, bufIsEncoding, bufLastIndexOf, bufStringLength, bufWrite, isAscii: isAscii$1, isLatin1, isUtf8: isUtf8$1, resolveObjectURL: resolveObjectURL$1, transcode: transcode$1 } = nativeBinding;
 const __napiBindingTarget = __napiLoadedBindingTarget;
 //#endregion
-//#region src/buffer.ts
+//#region src/main.ts
 const native = app_exports;
 var Buffer$1 = class Buffer$1 extends Uint8Array {
 	static poolSize = native.poolSize ?? 65536;
@@ -1050,8 +1061,6 @@ function SlowBuffer(size) {
 	return Buffer$1.allocUnsafe(size);
 }
 SlowBuffer.prototype = Buffer$1.prototype;
-//#endregion
-//#region src/main.ts
 const main = () => {
 	return "Hello, world!";
 };

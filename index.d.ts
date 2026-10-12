@@ -7,38 +7,42 @@
  * flavor napi-rs can build is listed, because `NAPI_RS_NATIVE_LIBRARY_PATH`
  * can point the loader at a WASI artifact this package does not build itself.
  */
-export declare const __napiBindingTarget: 'native' | 'wasm32-wasi' | 'wasm32-wasip1'
+export declare const __napiBindingTarget: "native" | "wasm32-wasi" | "wasm32-wasip1";
 
 export declare class Blob {
-  constructor(sources: Array<unknown>, options?: BlobOptions | undefined | null)
-  arrayBuffer(): ArrayBuffer
-  bytes(): NapiBuffer
-  text(): string
-  slice(start?: number | undefined | null, end?: number | undefined | null, contentType?: string | undefined | null): Blob
-  get size(): number
-  get type(): string
+  constructor(sources: Array<unknown>, options?: BlobOptions | undefined | null);
+  arrayBuffer(): ArrayBuffer;
+  bytes(): NapiBuffer;
+  text(): string;
+  slice(
+    start?: number | undefined | null,
+    end?: number | undefined | null,
+    contentType?: string | undefined | null,
+  ): Blob;
+  get size(): number;
+  get type(): string;
 }
 
 export declare class Bytes {
   /** Creates a new empty `Bytes`. This does not allocate. */
-  constructor()
+  constructor();
   /**
    * Creates a `Bytes` by copying the contents of the given buffer.
    *
    * Corresponds to `Bytes::copy_from_slice` / `Bytes::from(Vec<u8>)`.
    */
-  static fromBuffer(buffer: Buffer): Bytes
+  static fromBuffer(buffer: unknown): Bytes;
   /** Returns the number of bytes contained in this `Bytes`. */
-  len(): number
+  len(): number;
   /** Returns true if the `Bytes` has a length of 0. */
-  isEmpty(): boolean
+  isEmpty(): boolean;
   /**
    * Returns true if this is the only reference to the data and a conversion
    * into a uniquely-owned buffer would avoid copying the underlying memory.
    *
    * Always returns false for static / owner-backed data.
    */
-  isUnique(): boolean
+  isUnique(): boolean;
   /**
    * Returns a slice of self for the half-open range `[start, end)`.
    *
@@ -46,29 +50,29 @@ export declare class Bytes {
    * that increments the reference count; the returned `Bytes` shares the
    * same backing storage as `self`.
    */
-  slice(start: number, end?: number | undefined | null): Bytes
+  slice(start: number, end?: number | undefined | null): Bytes;
   /**
    * Splits the bytes into two at `at`.
    *
    * After the call `self` contains elements `[0, at)` and the returned
    * `Bytes` contains `[at, len)`. O(1).
    */
-  splitOff(at: number): Bytes
+  splitOff(at: number): Bytes;
   /**
    * Splits the bytes into two at `at`.
    *
    * After the call `self` contains elements `[at, len)` and the returned
    * `Bytes` contains `[0, at)`. O(1).
    */
-  splitTo(at: number): Bytes
+  splitTo(at: number): Bytes;
   /**
    * Shortens the buffer, keeping the first `len` bytes and dropping the rest.
    *
    * If `len` is greater than the current length this has no effect.
    */
-  truncate(len: number): void
+  truncate(len: number): void;
   /** Clears the buffer, removing all data. */
-  clear(): void
+  clear(): void;
   /**
    * Attempts to obtain a uniquely-owned view of the data.
    *
@@ -80,89 +84,146 @@ export declare class Bytes {
    * which cannot be exposed through napi without a dedicated mutable binding;
    * this is a faithful read-oriented approximation.
    */
-  tryIntoMut(): Bytes | null
+  tryIntoMut(): Bytes | null;
   /**
    * Returns a copy of the visible bytes as a Node `Buffer`.
    *
    * This is a copy: napi-rs cannot hand out a zero-copy view that outlives
    * the call. Use `slice`/`split_*` to share storage cheaply inside Rust.
    */
-  asSlice(): Buffer
+  asSlice(): Buffer;
   /**
    * Returns a node:buffer-compatible `Buffer` (a copy) over this `Bytes`.
    *
    * The returned `Buffer` is an independent, writable copy, so this `Bytes`
    * remains usable afterwards.
    */
-  buf(): Buffer
+  buf(): Buffer;
 }
 
 export declare class File {
-  constructor(sources: Array<unknown>, fileName: string, options?: FileOptions | undefined | null)
-  arrayBuffer(): ArrayBuffer
-  bytes(): NapiBuffer
-  text(): string
-  slice(start?: number | undefined | null, end?: number | undefined | null, contentType?: string | undefined | null): File
-  get name(): string
-  get lastModified(): number
-  get type(): string
-  get size(): number
+  constructor(sources: Array<unknown>, fileName: string, options?: FileOptions | undefined | null);
+  arrayBuffer(): ArrayBuffer;
+  bytes(): NapiBuffer;
+  text(): string;
+  slice(
+    start?: number | undefined | null,
+    end?: number | undefined | null,
+    contentType?: string | undefined | null,
+  ): File;
+  get name(): string;
+  get lastModified(): number;
+  get type(): string;
+  get size(): number;
 }
 
-export declare function add(left: number, right: number): number
+export declare function add(left: number, right: number): number;
 
-export declare function atob(data: string): string
+export declare function atob(data: string): string;
 
 export interface BlobOptions {
-  endings?: string
-  type?: string
+  endings?: string;
+  type?: string;
 }
 
-export declare function btoa(data: string): string
+export declare function btoa(data: string): string;
 
-export declare function bufByteLength(value: unknown, encoding?: string | undefined | null): number
+export declare function bufByteLength(value: unknown, encoding?: string | undefined | null): number;
 
-export declare function bufCompare(buf1: NapiBuffer, buf2: NapiBuffer): number
+export declare function bufCompare(buf1: NapiBuffer, buf2: NapiBuffer): number;
 
-export declare function bufConcat(list: Array<NapiBuffer>, totalLength?: number | undefined | null): NapiBuffer
+export declare function bufConcat(
+  list: Array<NapiBuffer>,
+  totalLength?: number | undefined | null,
+): NapiBuffer;
 
-export declare function bufCopyBytesFrom(view: unknown, offset?: number | undefined | null, length?: number | undefined | null): NapiBuffer
+export declare function bufCopyBytesFrom(
+  view: unknown,
+  offset?: number | undefined | null,
+  length?: number | undefined | null,
+): NapiBuffer;
 
-export declare function bufDecode(value: unknown, arg1?: unknown | undefined | null, arg2?: unknown | undefined | null): NapiBuffer
+export declare function bufDecode(
+  value: unknown,
+  arg1?: unknown | undefined | null,
+  arg2?: unknown | undefined | null,
+): NapiBuffer;
 
-export declare function bufEncode(buf: NapiBuffer, encoding?: string | undefined | null, start?: number | undefined | null, end?: number | undefined | null): string
+export declare function bufEncode(
+  buf: NapiBuffer,
+  encoding?: string | undefined | null,
+  start?: number | undefined | null,
+  end?: number | undefined | null,
+): string;
 
 export interface BufferConstants {
-  maxLength: number
-  maxStringLength: number
+  maxLength: number;
+  maxStringLength: number;
 }
 
-export declare function bufFill(buf: NapiBuffer, value: unknown, start?: number | undefined | null, end?: number | undefined | null, encoding?: string | undefined | null): void
+export declare function bufFill(
+  buf: NapiBuffer,
+  value: unknown,
+  start?: number | undefined | null,
+  end?: number | undefined | null,
+  encoding?: string | undefined | null,
+): void;
 
-export declare function bufIncludes(buf: NapiBuffer, value: unknown, byteOffset?: number | undefined | null, end?: number | undefined | null, encoding?: string | undefined | null): boolean
+export declare function bufIncludes(
+  buf: NapiBuffer,
+  value: unknown,
+  byteOffset?: number | undefined | null,
+  end?: number | undefined | null,
+  encoding?: string | undefined | null,
+): boolean;
 
-export declare function bufIndexOf(buf: NapiBuffer, value: unknown, byteOffset?: number | undefined | null, end?: number | undefined | null, encoding?: string | undefined | null): number
+export declare function bufIndexOf(
+  buf: NapiBuffer,
+  value: unknown,
+  byteOffset?: number | undefined | null,
+  end?: number | undefined | null,
+  encoding?: string | undefined | null,
+): number;
 
-export declare function bufIsEncoding(encoding: string): boolean
+export declare function bufIsEncoding(encoding: string): boolean;
 
-export declare function bufLastIndexOf(buf: NapiBuffer, value: unknown, byteOffset?: number | undefined | null, end?: number | undefined | null, encoding?: string | undefined | null): number
+export declare function bufLastIndexOf(
+  buf: NapiBuffer,
+  value: unknown,
+  byteOffset?: number | undefined | null,
+  end?: number | undefined | null,
+  encoding?: string | undefined | null,
+): number;
 
-export declare function bufStringLength(input: unknown, encoding?: string | undefined | null): number
+export declare function bufStringLength(
+  input: unknown,
+  encoding?: string | undefined | null,
+): number;
 
-export declare function bufWrite(buf: NapiBuffer, string: string, offset?: number | undefined | null, length?: number | undefined | null, encoding?: string | undefined | null): number
+export declare function bufWrite(
+  buf: NapiBuffer,
+  string: string,
+  offset?: number | undefined | null,
+  length?: number | undefined | null,
+  encoding?: string | undefined | null,
+): number;
 
 export interface FileOptions {
-  endings?: string
-  type?: string
-  lastModified?: number
+  endings?: string;
+  type?: string;
+  lastModified?: number;
 }
 
-export declare function isAscii(input: unknown): boolean
+export declare function isAscii(input: unknown): boolean;
 
-export declare function isLatin1(input: string): boolean
+export declare function isLatin1(input: string): boolean;
 
-export declare function isUtf8(input: unknown): boolean
+export declare function isUtf8(input: unknown): boolean;
 
-export declare function resolveObjectURL(id: string): Blob
+export declare function resolveObjectURL(id: string): Blob;
 
-export declare function transcode(source: unknown, fromEncoding: string, toEncoding: string): NapiBuffer
+export declare function transcode(
+  source: unknown,
+  fromEncoding: string,
+  toEncoding: string,
+): NapiBuffer;
