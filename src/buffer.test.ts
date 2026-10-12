@@ -7,6 +7,7 @@ import {
   btoa,
   isAscii,
   isUtf8,
+  resolveObjectURL,
   transcode,
   constants,
   INSPECT_MAX_BYTES,
@@ -14,6 +15,23 @@ import {
   kStringMaxLength,
   SlowBuffer,
 } from "./main.ts";
+
+import {
+  bufDecode,
+  bufEncode,
+  bufConcat,
+  bufCompare,
+  bufByteLength,
+  bufStringLength,
+  bufIsEncoding,
+  bufCopyBytesFrom,
+  bufFill,
+  bufWrite,
+  bufIndexOf,
+  bufLastIndexOf,
+  bufIncludes,
+  isLatin1,
+} from "../index.js";
 
 test("Buffer.alloc and allocUnsafe", () => {
   const buf1 = Buffer.alloc(10);
@@ -248,9 +266,12 @@ test("atob and btoa", () => {
   expect(atob(encoded)).toBe("hello");
 });
 
-test("isAscii and isUtf8", () => {
+test("isAscii, isUtf8, isLatin1", () => {
   expect(isAscii(Buffer.from("hello"))).toBe(true);
   expect(isUtf8(Buffer.from("tést"))).toBe(true);
+  expect(isLatin1("hello")).toBe(true);
+  expect(isLatin1("tést")).toBe(true);
+  expect(isLatin1("😀")).toBe(false);
 });
 
 test("Blob class", () => {
@@ -273,11 +294,46 @@ test("File class", () => {
   expect(file.text()).toBe("hello world");
 });
 
-test("transcode and constants", () => {
+test("transcode, resolveObjectURL, and constants", () => {
   const newBuf = transcode(Buffer.from("€"), "utf8", "ascii");
   expect(newBuf.toString("ascii")).toBe("?");
+
+  expect(() => resolveObjectURL("blob:nodedata:test")).toThrow();
 
   expect(constants.MAX_LENGTH).toBe(kMaxLength);
   expect(constants.MAX_STRING_LENGTH).toBe(kStringMaxLength);
   expect(INSPECT_MAX_BYTES).toBe(50);
+});
+
+test("Direct NAPI functions (bufDecode, bufEncode, bufConcat, etc.)", () => {
+  const b = bufDecode("hello world", "utf8");
+  expect(bufEncode(b, "utf8")).toBe("hello world");
+  expect(bufByteLength("hello world", "utf8")).toBe(11);
+  expect(bufStringLength(b, "utf8")).toBe(11);
+
+  expect(bufIsEncoding("utf8")).toBe(true);
+  expect(bufIsEncoding("invalid-encoding")).toBe(false);
+
+  const b1 = bufDecode("hello ", "utf8");
+  const b2 = bufDecode("world", "utf8");
+  const concatenated = bufConcat([b1, b2], 11);
+  expect(bufEncode(concatenated, "utf8")).toBe("hello world");
+
+  expect(bufCompare(b1, b2)).toBeLessThan(0);
+
+  const copied = bufCopyBytesFrom(new Uint8Array([1, 2, 3, 4, 5]), 1, 3);
+  expect(Array.from(copied)).toEqual([2, 3, 4]);
+
+  const fillBuf = Buffer.alloc(5);
+  bufFill(fillBuf, "a", 0, 5, "utf8");
+  expect(bufEncode(fillBuf, "utf8")).toBe("aaaaa");
+
+  const writeBuf = Buffer.alloc(10);
+  const written = bufWrite(writeBuf, "hello", 0, 5, "utf8");
+  expect(written).toBe(5);
+  expect(bufEncode(writeBuf, "utf8", 0, 5)).toBe("hello");
+
+  expect(bufIndexOf(writeBuf, "ll", 0, 10, "utf8")).toBe(2);
+  expect(bufLastIndexOf(writeBuf, "l", 0, 10, "utf8")).toBe(3);
+  expect(bufIncludes(writeBuf, "hello", 0, 10, "utf8")).toBe(true);
 });
