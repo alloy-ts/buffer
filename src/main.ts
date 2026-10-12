@@ -3,6 +3,7 @@ import * as native from "../dist/index.js";
 export const Buffer = native.Buffer;
 export const Blob = native.Blob;
 export const File = native.File;
+export const Bytes = (native as any).Bytes;
 
 export const atob = native.atob;
 export const btoa = native.btoa;
