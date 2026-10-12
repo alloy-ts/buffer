@@ -302,92 +302,23 @@ export class Buffer extends Uint8Array {
   }
 
   override toBase64(options?: any): string {
-    const enc = options?.alphabet === "base64url" ? "base64url" : "base64";
-    let str = this.toString(enc);
-    if (options?.omitPadding) {
-      str = str.replace(/=+$/, "");
-    }
-    return str;
+    return native.bufToBase64(this, options?.alphabet, options?.omitPadding);
   }
 
   override toHex(): string {
-    return this.toString("hex");
+    return native.bufToHex(this);
   }
 
   override setFromBase64(base64: string, optionsOrOffset?: any): { read: number; written: number } {
     const offset = typeof optionsOrOffset === "number" ? optionsOrOffset : optionsOrOffset?.offset;
-    const off = offset ?? 0;
-    if (typeof off !== "number" || Number.isNaN(off) || off < 0 || off > this.length) {
+    if (
+      offset !== undefined &&
+      (typeof offset !== "number" || Number.isNaN(offset) || offset < 0 || offset > this.length)
+    ) {
       throw new RangeError('The value of "offset" is out of range.');
     }
-    const targetSpace = this.length - off;
-    let written = 0;
-    let read = 0;
-
-    const b64Map = (c: string) => {
-      const code = c.charCodeAt(0);
-      if (code >= 65 && code <= 90) return code - 65;
-      if (code >= 97 && code <= 122) return code - 71;
-      if (code >= 48 && code <= 57) return code + 4;
-      if (c === "+" || c === "-") return 62;
-      if (c === "/" || c === "_") return 63;
-      if (c === "=") return -2;
-      return -1;
-    };
-
-    let chunk: number[] = [];
-
-    for (let i = 0; i < base64.length; i++) {
-      const ch = base64[i]!;
-      if (ch === " " || ch === "\t" || ch === "\n" || ch === "\r" || ch === "\f") {
-        if (written === targetSpace) break;
-        read = i + 1;
-        continue;
-      }
-      const val = b64Map(ch);
-      if (val === -1) break;
-
-      chunk.push(val);
-
-      if (chunk.length === 4) {
-        const v0 = chunk[0]!;
-        const v1 = chunk[1]!;
-        const v2 = chunk[2]!;
-        const v3 = chunk[3]!;
-
-        const b0 = (v0 << 2) | (v1 >> 4);
-        if (written < targetSpace) {
-          this[off + written++] = b0;
-        } else {
-          break;
-        }
-
-        if (v2 !== -2) {
-          const b1 = ((v1 & 15) << 4) | (v2 >> 2);
-          if (written < targetSpace) {
-            this[off + written++] = b1;
-          } else {
-            read = i + 1;
-            break;
-          }
-        }
-
-        if (v3 !== -2 && v2 !== -2) {
-          const b2 = ((v2 & 3) << 6) | v3;
-          if (written < targetSpace) {
-            this[off + written++] = b2;
-          } else {
-            read = i + 1;
-            break;
-          }
-        }
-
-        read = i + 1;
-        chunk = [];
-      }
-    }
-
-    return { read, written };
+    const res = native.bufSetFromBase64(this, base64, offset);
+    return { read: res.read, written: res.written };
   }
 
   override setFromHex(hex: string, optionsOrOffset?: any): { read: number; written: number } {
@@ -395,15 +326,14 @@ export class Buffer extends Uint8Array {
       throw new SyntaxError("Invalid hex string");
     }
     const offset = typeof optionsOrOffset === "number" ? optionsOrOffset : optionsOrOffset?.offset;
-    const off = offset ?? 0;
-    if (typeof off !== "number" || Number.isNaN(off) || off < 0 || off > this.length) {
+    if (
+      offset !== undefined &&
+      (typeof offset !== "number" || Number.isNaN(offset) || offset < 0 || offset > this.length)
+    ) {
       throw new RangeError('The value of "offset" is out of range.');
     }
-    const maxBytes = Math.min(hex.length / 2, this.length - off);
-    for (let i = 0; i < maxBytes; i++) {
-      this[off + i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);
-    }
-    return { read: maxBytes * 2, written: maxBytes };
+    const res = native.bufSetFromHex(this, hex, offset);
+    return { read: res.read, written: res.written };
   }
 
   swap16(): this {

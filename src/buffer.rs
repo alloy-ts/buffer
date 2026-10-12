@@ -394,6 +394,88 @@ pub fn buf_decode(env: Env, value: Unknown, arg1: Option<Unknown>, arg2: Option<
   ))
 }
 
+#[napi(object)]
+pub struct SetFromOptions {
+  pub read: u32,
+  pub written: u32,
+}
+
+/// `buf.toBase64([options])`.
+#[napi(js_name = "bufToBase64")]
+pub fn buf_to_base64(
+  buf: Buffer,
+  alphabet: Option<String>,
+  omit_padding: Option<bool>,
+) -> Result<String> {
+  let data = buf.as_ref();
+  let url = alphabet.as_deref() == Some("base64url");
+  let mut s = encode_base64(data, url);
+  if omit_padding.unwrap_or(false) {
+    s = s.trim_end_matches('=').to_string();
+  }
+  Ok(s)
+}
+
+/// `buf.toHex()`.
+#[napi(js_name = "bufToHex")]
+pub fn buf_to_hex(buf: Buffer) -> Result<String> {
+  Ok(encode_hex(buf.as_ref()))
+}
+
+/// `buf.setFromBase64(base64[, offset])`.
+#[napi(js_name = "bufSetFromBase64")]
+pub fn buf_set_from_base64(
+  mut buf: Buffer,
+  base64: String,
+  offset: Option<u32>,
+) -> Result<SetFromOptions> {
+  let data = buf.as_mut();
+  let off = offset.unwrap_or(0) as usize;
+  if off > data.len() {
+    return Err(Error::new(
+      Status::InvalidArg,
+      "offset out of range",
+    ));
+  }
+  let decoded = decode_base64(&base64, false)?;
+  let space = data.len() - off;
+  let written = decoded.len().min(space);
+  if written > 0 {
+    data[off..off + written].copy_from_slice(&decoded[..written]);
+  }
+  Ok(SetFromOptions {
+    read: base64.len() as u32,
+    written: written as u32,
+  })
+}
+
+/// `buf.setFromHex(hex[, offset])`.
+#[napi(js_name = "bufSetFromHex")]
+pub fn buf_set_from_hex(
+  mut buf: Buffer,
+  hex: String,
+  offset: Option<u32>,
+) -> Result<SetFromOptions> {
+  let data = buf.as_mut();
+  let off = offset.unwrap_or(0) as usize;
+  if off > data.len() {
+    return Err(Error::new(
+      Status::InvalidArg,
+      "offset out of range",
+    ));
+  }
+  let decoded = decode_hex(&hex)?;
+  let space = data.len() - off;
+  let written = decoded.len().min(space);
+  if written > 0 {
+    data[off..off + written].copy_from_slice(&decoded[..written]);
+  }
+  Ok(SetFromOptions {
+    read: (written * 2) as u32,
+    written: written as u32,
+  })
+}
+
 /// `buf.toString(encoding[, start[, end]])`.
 #[napi(js_name = "bufEncode")]
 pub fn buf_encode(
