@@ -654,6 +654,7 @@ export class Buffer extends Uint8Array {
 }
 
 export const Blob = native.Blob;
+export const Bytes = native.Bytes;
 export const File = native.File;
 export const atob = native.atob;
 export const btoa = native.btoa;

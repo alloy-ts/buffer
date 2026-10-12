@@ -7,6 +7,7 @@ import {
   btoa,
   isAscii,
   isUtf8,
+  resolveObjectURL,
   transcode,
   constants,
   INSPECT_MAX_BYTES,
@@ -14,8 +15,9 @@ import {
   kStringMaxLength,
   SlowBuffer,
 } from "./main.ts";
+import * as native from "../index.js";
 
-test("Buffer.alloc and allocUnsafe", () => {
+test("Buffer.alloc and allocUnsafe and allocUnsafeSlow", () => {
   const buf1 = Buffer.alloc(10);
   expect(buf1.length).toBe(10);
   expect(Array.from(buf1)).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
@@ -29,14 +31,25 @@ test("Buffer.alloc and allocUnsafe", () => {
 
   const buf4 = SlowBuffer(10);
   expect(buf4.length).toBe(10);
+
+  expect(() => Buffer.alloc(-1)).toThrow(RangeError);
+  expect(() => Buffer.alloc("abc" as any)).toThrow(TypeError);
 });
 
-test("Buffer.from array and truncated values", () => {
+test("Buffer.from variants", () => {
   const buf1 = Buffer.from([1, 2, 3]);
   expect(Array.from(buf1)).toEqual([1, 2, 3]);
 
   const buf2 = Buffer.from([257, 257.5, -255, "1"]);
   expect(Array.from(buf2)).toEqual([1, 1, 1, 1]);
+
+  // Object with valueOf
+  const objVal = { valueOf: () => [10, 20] };
+  expect(Array.from(Buffer.from(objVal as any))).toEqual([10, 20]);
+
+  // Object with Symbol.toPrimitive
+  const objPrim = { [Symbol.toPrimitive]: () => "hello" };
+  expect(Buffer.from(objPrim as any).toString()).toBe("hello");
 });
 
 test("Buffer.from string and encodings", () => {
@@ -62,6 +75,21 @@ test("Buffer.from ArrayBuffer", () => {
   expect(buf.buffer).toBe(ab);
 });
 
+test("Buffer.of", () => {
+  const buf = Buffer.of(1, 2, 3, 4);
+  expect(buf.length).toBe(4);
+  expect(Array.from(buf)).toEqual([1, 2, 3, 4]);
+  expect(Buffer.isBuffer(buf)).toBe(true);
+});
+
+test("Buffer.copyBytesFrom", () => {
+  const u16 = new Uint16Array([0, 0xffff]);
+  const buf = Buffer.copyBytesFrom(u16, 1, 1);
+  expect(buf.length).toBe(2);
+  expect(buf[0]).toBe(255);
+  expect(buf[1]).toBe(255);
+});
+
 test("Buffer.isBuffer and Buffer.isEncoding", () => {
   expect(Buffer.isBuffer(Buffer.alloc(10))).toBe(true);
   expect(Buffer.isBuffer(Buffer.from("foo"))).toBe(true);
@@ -79,6 +107,8 @@ test("Buffer.byteLength", () => {
   const str = "\u00bd + \u00bc = \u00be";
   expect(Buffer.byteLength(str, "utf8")).toBe(12);
   expect(Buffer.byteLength(Buffer.from(str))).toBe(12);
+  expect(Buffer.byteLength(new Uint8Array(10))).toBe(10);
+  expect(Buffer.byteLength(new ArrayBuffer(15))).toBe(15);
 });
 
 test("Buffer.concat", () => {
@@ -91,9 +121,11 @@ test("Buffer.concat", () => {
   const bufA = Buffer.concat([buf1, buf2, buf3], totalLength);
   expect(bufA.length).toBe(42);
   expect(Buffer.isBuffer(bufA)).toBe(true);
+
+  expect(Buffer.concat([], 0).length).toBe(0);
 });
 
-test("Buffer.compare and buf.equals", () => {
+test("Buffer.compare and buf.equals with range comparison", () => {
   const buf1 = Buffer.from("ABC");
   const buf2 = Buffer.from("414243", "hex");
   const buf3 = Buffer.from("ABCD");
@@ -105,6 +137,10 @@ test("Buffer.compare and buf.equals", () => {
   expect(buf1.compare(buf2)).toBe(0);
   expect(buf1.compare(buf3)).toBe(-1);
   expect(buf3.compare(buf1)).toBe(1);
+
+  const rangeBuf1 = Buffer.from([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  const rangeBuf2 = Buffer.from([5, 6, 7, 8, 9, 1, 2, 3, 4]);
+  expect(rangeBuf1.compare(rangeBuf2, 5, 9, 0, 4)).toBe(0);
 
   const arr = [buf3, buf1];
   arr.sort((a, b) => Buffer.compare(a, b));
@@ -127,13 +163,21 @@ test("buf.slice and buf.subarray memory sharing", () => {
   const buf3 = Buffer.from("buffer");
   const sub = buf3.subarray(-5, -2);
   expect(sub.toString()).toBe("uff");
+
+  const sliced = buf3.slice(0, 3);
+  expect(sliced.toString()).toBe("buf");
 });
 
-test("buf.write", () => {
+test("buf.write overloads", () => {
   const buf = Buffer.alloc(256);
   const len = buf.write("\u00bd + \u00bc = \u00be", 0);
   expect(len).toBe(12);
   expect(buf.toString("utf8", 0, len)).toBe("\u00bd + \u00bc = \u00be");
+
+  const buf10 = Buffer.alloc(10);
+  const len10 = buf10.write("abcd", 8);
+  expect(len10).toBe(2);
+  expect(buf10.toString("utf8", 8, 10)).toBe("ab");
 });
 
 test("buf.copy", () => {
@@ -146,6 +190,13 @@ test("buf.copy", () => {
 
   buf1.copy(buf2, 8, 16, 20);
   expect(buf2.toString("ascii", 0, 25)).toBe("!!!!!!!!qrst!!!!!!!!!!!!!");
+
+  const bufOverlap = Buffer.allocUnsafe(26);
+  for (let i = 0; i < 26; i++) {
+    bufOverlap[i] = i + 97;
+  }
+  bufOverlap.copy(bufOverlap, 0, 4, 10);
+  expect(bufOverlap.toString().slice(0, 10)).toBe("efghijghij");
 });
 
 test("buf.fill", () => {
@@ -154,6 +205,9 @@ test("buf.fill", () => {
 
   const c = Buffer.allocUnsafe(5).fill("");
   expect(Array.from(c)).toEqual([0, 0, 0, 0, 0]);
+
+  const multiByte = Buffer.allocUnsafe(5).fill("\u0222");
+  expect(Array.from(multiByte)).toEqual([0xc8, 0xa2, 0xc8, 0xa2, 0xc8]);
 });
 
 test("buf.indexOf, lastIndexOf, includes", () => {
@@ -193,7 +247,7 @@ test("buf.toJSON", () => {
   expect(JSON.parse(json)).toEqual({ type: "Buffer", data: [1, 2, 3, 4, 5] });
 });
 
-test("numeric read and write methods", () => {
+test("numeric read and write methods (including 48-bit & BigInt & aliases)", () => {
   const buf = Buffer.alloc(16);
 
   buf.writeInt8(-2, 0);
@@ -203,11 +257,20 @@ test("numeric read and write methods", () => {
   expect(buf.readUInt8(1)).toBe(254);
   expect(buf.readUint8(1)).toBe(254);
 
+  buf.writeUint8(250, 1);
+  expect(buf.readUint8(1)).toBe(250);
+
   buf.writeInt16LE(0x0304, 2);
   expect(buf.readInt16LE(2)).toBe(0x0304);
 
   buf.writeInt16BE(0x0102, 4);
   expect(buf.readInt16BE(4)).toBe(0x0102);
+
+  buf.writeUint16LE(0x1234, 2);
+  expect(buf.readUint16LE(2)).toBe(0x1234);
+
+  buf.writeUint16BE(0x5678, 4);
+  expect(buf.readUint16BE(4)).toBe(0x5678);
 
   buf.writeInt32LE(0x05060708, 6);
   expect(buf.readInt32LE(6)).toBe(0x05060708);
@@ -215,9 +278,21 @@ test("numeric read and write methods", () => {
   buf.writeInt32BE(0x01020304, 10);
   expect(buf.readInt32BE(10)).toBe(0x01020304);
 
+  buf.writeUint32LE(0x87654321, 6);
+  expect(buf.readUint32LE(6)).toBe(0x87654321);
+
+  buf.writeUint32BE(0x12345678, 10);
+  expect(buf.readUint32BE(10)).toBe(0x12345678);
+
   const floatBuf = Buffer.alloc(8);
   floatBuf.writeFloatLE(123.45, 0);
   expect(Math.fround(floatBuf.readFloatLE(0))).toBe(Math.fround(123.45));
+
+  floatBuf.writeFloatBE(123.45, 0);
+  expect(Math.fround(floatBuf.readFloatBE(0))).toBe(Math.fround(123.45));
+
+  floatBuf.writeDoubleLE(123.456789, 0);
+  expect(floatBuf.readDoubleLE(0)).toBe(123.456789);
 
   floatBuf.writeDoubleBE(123.456789, 0);
   expect(floatBuf.readDoubleBE(0)).toBe(123.456789);
@@ -226,20 +301,29 @@ test("numeric read and write methods", () => {
   bigBuf.writeBigInt64BE(0x0102030405060708n, 0);
   expect(bigBuf.readBigInt64BE(0)).toBe(0x0102030405060708n);
 
+  bigBuf.writeBigInt64LE(0x0102030405060708n, 0);
+  expect(bigBuf.readBigInt64LE(0)).toBe(0x0102030405060708n);
+
   bigBuf.writeBigUInt64LE(0xdecafafecacefaden, 0);
   expect(bigBuf.readBigUInt64LE(0)).toBe(0xdecafafecacefaden);
+  expect(bigBuf.readBigUint64LE(0)).toBe(0xdecafafecacefaden);
 
+  bigBuf.writeBigUint64BE(0xdecafafecacefaden, 0);
+  expect(bigBuf.readBigUint64BE(0)).toBe(0xdecafafecacefaden);
+
+  // 48-bit variable length integers
   const varBuf = Buffer.alloc(6);
-  varBuf.writeIntLE(0x1234567890ab, 0, 6);
-  expect(varBuf.readIntLE(0, 6)).toBe(0x1234567890ab);
+  varBuf.writeUIntLE(0x1234567890ab, 0, 6);
+  expect(varBuf.readUIntLE(0, 6).toString(16)).toBe("1234567890ab");
 
-  const varBuf4 = Buffer.alloc(4);
-  varBuf4.writeIntLE(0, 0, 4);
-  expect(varBuf4.readIntLE(0, 4)).toBe(0);
+  varBuf.writeUIntBE(0x1234567890ab, 0, 6);
+  expect(varBuf.readUIntBE(0, 6).toString(16)).toBe("1234567890ab");
 
-  const varBuf4Neg = Buffer.alloc(4);
-  varBuf4Neg.writeIntLE(-123456, 0, 4);
-  expect(varBuf4Neg.readIntLE(0, 4)).toBe(-123456);
+  varBuf.writeIntLE(-123456, 0, 6);
+  expect(varBuf.readIntLE(0, 6)).toBe(-123456);
+
+  varBuf.writeIntBE(-123456, 0, 6);
+  expect(varBuf.readIntBE(0, 6)).toBe(-123456);
 });
 
 test("atob and btoa", () => {
@@ -248,9 +332,11 @@ test("atob and btoa", () => {
   expect(atob(encoded)).toBe("hello");
 });
 
-test("isAscii and isUtf8", () => {
+test("isAscii, isUtf8, isLatin1, resolveObjectURL", () => {
   expect(isAscii(Buffer.from("hello"))).toBe(true);
   expect(isUtf8(Buffer.from("tést"))).toBe(true);
+  expect(native.isLatin1("hello")).toBe(true);
+  expect(() => resolveObjectURL("blob:nodedata:123")).toThrow();
 });
 
 test("Blob class", () => {
@@ -262,6 +348,9 @@ test("Blob class", () => {
   const sliced = blob.slice(0, 5);
   expect(sliced.size).toBe(5);
   expect(sliced.text()).toBe("hello");
+
+  expect(blob.bytes() instanceof Uint8Array).toBe(true);
+  expect(blob.arrayBuffer() instanceof ArrayBuffer).toBe(true);
 });
 
 test("File class", () => {
@@ -271,13 +360,28 @@ test("File class", () => {
   expect(file.type).toBe("text/plain");
   expect(typeof file.lastModified).toBe("number");
   expect(file.text()).toBe("hello world");
+
+  const fileSlice = file.slice(0, 5);
+  expect(fileSlice.size).toBe(5);
+  expect(fileSlice.name).toBe("hello.txt");
 });
 
-test("transcode and constants", () => {
+test("transcode, constants, poolSize", () => {
   const newBuf = transcode(Buffer.from("€"), "utf8", "ascii");
   expect(newBuf.toString("ascii")).toBe("?");
 
   expect(constants.MAX_LENGTH).toBe(kMaxLength);
   expect(constants.MAX_STRING_LENGTH).toBe(kStringMaxLength);
   expect(INSPECT_MAX_BYTES).toBe(50);
+  expect(Buffer.poolSize).toBe(65536);
+});
+
+test("Direct NAPI functions from native module", () => {
+  const buf = native.bufDecode("hello", "utf8");
+  expect(buf instanceof Uint8Array).toBe(true);
+  expect(native.bufEncode(buf, "utf8")).toBe("hello");
+  expect(native.bufByteLength("hello", "utf8")).toBe(5);
+  expect(native.bufIsEncoding("utf8")).toBe(true);
+  expect(native.bufIsEncoding("invalid")).toBe(false);
+  expect(native.bufStringLength(buf, "utf8")).toBe(5);
 });
