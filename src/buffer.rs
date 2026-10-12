@@ -740,6 +740,111 @@ pub fn buf_includes(
   Ok(buf_index_of(env, buf, value, byte_offset, end, encoding)? >= 0)
 }
 
+/// `buf.swap16()`.
+#[napi(js_name = "bufSwap16")]
+pub fn buf_swap16(mut buf: Buffer) -> Result<()> {
+  let data = buf.as_mut();
+  if data.len() % 2 != 0 {
+    return Err(Error::new(
+      Status::InvalidArg,
+      "ERR_INVALID_BUFFER_SIZE: Buffer size must be a multiple of 16-bits",
+    ));
+  }
+  for chunk in data.chunks_exact_mut(2) {
+    chunk.swap(0, 1);
+  }
+  Ok(())
+}
+
+/// `buf.swap32()`.
+#[napi(js_name = "bufSwap32")]
+pub fn buf_swap32(mut buf: Buffer) -> Result<()> {
+  let data = buf.as_mut();
+  if data.len() % 4 != 0 {
+    return Err(Error::new(
+      Status::InvalidArg,
+      "ERR_INVALID_BUFFER_SIZE: Buffer size must be a multiple of 32-bits",
+    ));
+  }
+  for chunk in data.chunks_exact_mut(4) {
+    chunk.swap(0, 3);
+    chunk.swap(1, 2);
+  }
+  Ok(())
+}
+
+/// `buf.swap64()`.
+#[napi(js_name = "bufSwap64")]
+pub fn buf_swap64(mut buf: Buffer) -> Result<()> {
+  let data = buf.as_mut();
+  if data.len() % 8 != 0 {
+    return Err(Error::new(
+      Status::InvalidArg,
+      "ERR_INVALID_BUFFER_SIZE: Buffer size must be a multiple of 64-bits",
+    ));
+  }
+  for chunk in data.chunks_exact_mut(8) {
+    chunk.reverse();
+  }
+  Ok(())
+}
+
+/// `buf.readUIntLE(offset, byteLength)`.
+#[napi(js_name = "bufReadUIntLE")]
+pub fn buf_read_uint_le(buf: Buffer, offset: u32, byte_length: u32) -> Result<f64> {
+  let data = buf.as_ref();
+  let o = offset as usize;
+  let len = byte_length as usize;
+  if o + len > data.len() || len == 0 || len > 6 {
+    return Err(Error::new(Status::InvalidArg, "out of range"));
+  }
+  let mut val: u64 = 0;
+  for i in 0..len {
+    val |= (data[o + i] as u64) << (8 * i);
+  }
+  Ok(val as f64)
+}
+
+/// `buf.readUIntBE(offset, byteLength)`.
+#[napi(js_name = "bufReadUIntBE")]
+pub fn buf_read_uint_be(buf: Buffer, offset: u32, byte_length: u32) -> Result<f64> {
+  let data = buf.as_ref();
+  let o = offset as usize;
+  let len = byte_length as usize;
+  if o + len > data.len() || len == 0 || len > 6 {
+    return Err(Error::new(Status::InvalidArg, "out of range"));
+  }
+  let mut val: u64 = 0;
+  for i in 0..len {
+    val = (val << 8) | (data[o + i] as u64);
+  }
+  Ok(val as f64)
+}
+
+/// `buf.readIntLE(offset, byteLength)`.
+#[napi(js_name = "bufReadIntLE")]
+pub fn buf_read_int_le(buf: Buffer, offset: u32, byte_length: u32) -> Result<f64> {
+  let val = buf_read_uint_le(buf, offset, byte_length)?;
+  let limit = (1u64 << (8 * byte_length - 1)) as f64;
+  if val >= limit {
+    Ok(val - limit * 2.0)
+  } else {
+    Ok(val)
+  }
+}
+
+/// `buf.readIntBE(offset, byteLength)`.
+#[napi(js_name = "bufReadIntBE")]
+pub fn buf_read_int_be(buf: Buffer, offset: u32, byte_length: u32) -> Result<f64> {
+  let val = buf_read_uint_be(buf, offset, byte_length)?;
+  let limit = (1u64 << (8 * byte_length - 1)) as f64;
+  if val >= limit {
+    Ok(val - limit * 2.0)
+  } else {
+    Ok(val)
+  }
+}
+
 // ===========================================================================
 // Blob / File
 // ===========================================================================

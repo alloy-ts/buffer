@@ -337,59 +337,17 @@ export class Buffer extends Uint8Array {
   }
 
   swap16(): this {
-    const len = this.length;
-    if (len % 2 !== 0) {
-      throw new RangeError("ERR_INVALID_BUFFER_SIZE: Buffer size must be a multiple of 16-bits");
-    }
-    for (let i = 0; i < len; i += 2) {
-      const val = this[i]!;
-      this[i] = this[i + 1]!;
-      this[i + 1] = val;
-    }
+    native.bufSwap16(this);
     return this;
   }
 
   swap32(): this {
-    const len = this.length;
-    if (len % 4 !== 0) {
-      throw new RangeError("ERR_INVALID_BUFFER_SIZE: Buffer size must be a multiple of 32-bits");
-    }
-    for (let i = 0; i < len; i += 4) {
-      const b0 = this[i]!;
-      const b1 = this[i + 1]!;
-      const b2 = this[i + 2]!;
-      const b3 = this[i + 3]!;
-      this[i] = b3;
-      this[i + 1] = b2;
-      this[i + 2] = b1;
-      this[i + 3] = b0;
-    }
+    native.bufSwap32(this);
     return this;
   }
 
   swap64(): this {
-    const len = this.length;
-    if (len % 8 !== 0) {
-      throw new RangeError("ERR_INVALID_BUFFER_SIZE: Buffer size must be a multiple of 64-bits");
-    }
-    for (let i = 0; i < len; i += 8) {
-      const b0 = this[i]!;
-      const b1 = this[i + 1]!;
-      const b2 = this[i + 2]!;
-      const b3 = this[i + 3]!;
-      const b4 = this[i + 4]!;
-      const b5 = this[i + 5]!;
-      const b6 = this[i + 6]!;
-      const b7 = this[i + 7]!;
-      this[i] = b7;
-      this[i + 1] = b6;
-      this[i + 2] = b5;
-      this[i + 3] = b4;
-      this[i + 4] = b3;
-      this[i + 5] = b2;
-      this[i + 6] = b1;
-      this[i + 7] = b0;
-    }
+    native.bufSwap64(this);
     return this;
   }
 
@@ -496,13 +454,7 @@ export class Buffer extends Uint8Array {
   }
 
   readUIntLE(offset: number, byteLength: number): number {
-    let val = this[offset]!;
-    let mul = 1;
-    let i = 0;
-    while (++i < byteLength && (mul *= 0x100)) {
-      val += this[offset + i]! * mul;
-    }
-    return val;
+    return native.bufReadUIntLE(this, offset, byteLength);
   }
 
   readUintLE(offset: number, byteLength: number): number {
@@ -510,13 +462,7 @@ export class Buffer extends Uint8Array {
   }
 
   readUIntBE(offset: number, byteLength: number): number {
-    let len = byteLength;
-    let val = this[offset + --len]!;
-    let mul = 1;
-    while (len > 0 && (mul *= 0x100)) {
-      val += this[offset + --len]! * mul;
-    }
-    return val;
+    return native.bufReadUIntBE(this, offset, byteLength);
   }
 
   readUintBE(offset: number, byteLength: number): number {
@@ -524,17 +470,11 @@ export class Buffer extends Uint8Array {
   }
 
   readIntLE(offset: number, byteLength: number): number {
-    let val = this.readUIntLE(offset, byteLength);
-    const limit = 2 ** (8 * byteLength - 1);
-    if (val >= limit) val -= limit * 2;
-    return val;
+    return native.bufReadIntLE(this, offset, byteLength);
   }
 
   readIntBE(offset: number, byteLength: number): number {
-    let val = this.readUIntBE(offset, byteLength);
-    const limit = 2 ** (8 * byteLength - 1);
-    if (val >= limit) val -= limit * 2;
-    return val;
+    return native.bufReadIntBE(this, offset, byteLength);
   }
 
   // --- Write Methods ---
