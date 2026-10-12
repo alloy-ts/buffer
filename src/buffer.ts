@@ -771,6 +771,7 @@ export class File extends Blob {
     this.lastModified = options?.lastModified ?? Date.now();
   }
 }
+
 export const Bytes = native.Bytes;
 export const atob = native.atob;
 export const btoa = native.btoa;
