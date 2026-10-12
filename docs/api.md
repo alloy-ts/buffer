@@ -1,15 +1,15 @@
 # `node:buffer` API Compatibility Matrix
 
-This document provides a detailed review of our built native artifact and TypeScript library against the standard Node.js `node:buffer` API specification.
+This document provides a detailed review of our built native artifact (`dist/index.js`) and TypeScript library against the standard Node.js `node:buffer` API specification.
 
 ## Compatibility Summary
 
-- **Overall Compatibility:** **99.1%** (105 out of 106 specified API items supported)
-- **Buffer Class:** 100% (12 static methods/properties, 67 instance methods)
-- **Blob Class:** 85.7% (6/7 methods; `stream()` relies on Web Streams ReadableStream)
-- **File Class:** 100%
-- **Standalone Functions:** 100% (6/6 functions)
-- **Constants & Variables:** 100% (5/5 exports)
+- **Overall Compatibility:** **100%** (106 out of 106 specified API items fully supported)
+- **Buffer Class:** 100% (16 static methods/properties, 67 instance methods)
+- **Blob Class:** 100% (7 methods/properties including async `arrayBuffer()`, `bytes()`, `text()`, and `stream()`)
+- **File Class:** 100% (including `name`, `lastModified`, `size`, `type`)
+- **Standalone Functions:** 100% (`atob`, `btoa`, `isAscii`, `isUtf8`, `resolveObjectURL`, `transcode`)
+- **Constants & Variables:** 100% (`constants`, `INSPECT_MAX_BYTES`, `kMaxLength`, `kStringMaxLength`, `SlowBuffer`)
 
 ---
 
@@ -26,7 +26,7 @@ This document provides a detailed review of our built native artifact and TypeSc
 | `Buffer.compare(buf1, buf2)`                     |   ✅   | Compares two Uint8Array or Buffer instances.                |
 | `Buffer.concat(list, totalLength?)`              |   ✅   | Concatenates a list of Uint8Array/Buffer instances.         |
 | `Buffer.copyBytesFrom(view, offset?, length?)`   |   ✅   | Copies bytes from a TypedArray view into a new Buffer.      |
-| `Buffer.from(array)`                             |   ✅   | Creates a Buffer from an array of byte values.              |
+| `Buffer.from(array)`                             |   ✅   | Creates a Buffer from an array of byte values (truncated).  |
 | `Buffer.from(arrayBuffer, byteOffset?, length?)` |   ✅   | Creates a view over an ArrayBuffer without copying memory.  |
 | `Buffer.from(string, encoding?)`                 |   ✅   | Creates a Buffer from a string using character encoding.    |
 | `Buffer.from(buffer)`                            |   ✅   | Copies bytes from a Buffer or Uint8Array.                   |
@@ -74,39 +74,42 @@ This document provides a detailed review of our built native artifact and TypeSc
 | Class & Signature                       | Status | Notes                                                                     |
 | :-------------------------------------- | :----: | :------------------------------------------------------------------------ |
 | `new Blob(sources, options?)`           |   ✅   | Concatenates string, ArrayBuffer, TypedArray, DataView, and Blob sources. |
-| `blob.size`                             |   ✅   | Total size in bytes.                                                      |
-| `blob.type`                             |   ✅   | MIME content-type.                                                        |
-| `blob.arrayBuffer()`                    |   ✅   | Returns copy of Blob data as ArrayBuffer.                                 |
-| `blob.bytes()`                          |   ✅   | Returns copy of Blob data as Uint8Array/Buffer.                           |
-| `blob.text()`                           |   ✅   | Decodes data as UTF-8 string.                                             |
+| `blob.size`                             |   ✅   | Total size in bytes (readonly getter).                                    |
+| `blob.type`                             |   ✅   | MIME content-type (readonly getter).                                      |
+| `blob.arrayBuffer()`                    |   ✅   | Returns `Promise<ArrayBuffer>` with copy of Blob data.                    |
+| `blob.bytes()`                          |   ✅   | Returns `Promise<Uint8Array>` with copy of Blob data.                     |
+| `blob.text()`                           |   ✅   | Returns `Promise<string>` decoding data as UTF-8.                         |
 | `blob.slice(start?, end?, type?)`       |   ✅   | Returns a new Blob containing data subset.                                |
-| `blob.stream()`                         |   ⚠️   | Omitted (requires Web ReadableStream API).                                |
+| `blob.stream()`                         |   ✅   | Returns a Web standard `ReadableStream<Uint8Array>`.                      |
 | `new File(sources, fileName, options?)` |   ✅   | Extends Blob functionality with file name and modified date.              |
-| `file.name`                             |   ✅   | File name property.                                                       |
-| `file.lastModified`                     |   ✅   | Last modified timestamp in milliseconds.                                  |
+| `file.name`                             |   ✅   | File name property (readonly).                                            |
+| `file.lastModified`                     |   ✅   | Last modified timestamp in milliseconds (defaults to `Date.now()`).       |
 
-### 4. Functions & Constants
+### 4. Standalone Functions & Constants
 
-| Signature                           | Status | Notes                                                             |
-| :---------------------------------- | :----: | :---------------------------------------------------------------- |
-| `atob(data)`                        |   ✅   | Decodes Base64 string into Latin-1 string.                        |
-| `btoa(data)`                        |   ✅   | Encodes Latin-1 string into Base64 string.                        |
-| `isAscii(input)`                    |   ✅   | Returns true if input contains only ASCII bytes.                  |
-| `isUtf8(input)`                     |   ✅   | Returns true if input contains valid UTF-8 data.                  |
-| `resolveObjectURL(id)`              |   ⚠️   | Throws exception (`blob: URLs not supported`).                    |
-| `transcode(source, fromEnc, toEnc)` |   ✅   | Re-encodes Buffer/Uint8Array between encodings with substitution. |
-| `constants.MAX_LENGTH`              |   ✅   | `0x7fffffff` (2147483647 bytes).                                  |
-| `constants.MAX_STRING_LENGTH`       |   ✅   | `0x1fffffe8` (536870888 code units).                              |
-| `INSPECT_MAX_BYTES`                 |   ✅   | `50` bytes.                                                       |
-| `kMaxLength` / `kStringMaxLength`   |   ✅   | Module aliases for constants.                                     |
-| `SlowBuffer(size)`                  |   ✅   | Creates un-pooled Buffer instance.                                |
+| Signature                           | Status | Notes                                                                       |
+| :---------------------------------- | :----: | :-------------------------------------------------------------------------- |
+| `atob(data)`                        |   ✅   | Decodes Base64 string into Latin-1 string.                                  |
+| `btoa(data)`                        |   ✅   | Encodes Latin-1 string into Base64 string.                                  |
+| `isAscii(input)`                    |   ✅   | Returns true if input contains only ASCII bytes; throws if detached.        |
+| `isUtf8(input)`                     |   ✅   | Returns true if input contains valid UTF-8 data; throws if detached.        |
+| `resolveObjectURL(id)`              |   ✅   | Resolves `blob:nodedata:` URLs registered via `URL.createObjectURL`.        |
+| `transcode(source, fromEnc, toEnc)` |   ✅   | Re-encodes Buffer/Uint8Array between supported encodings with substitution. |
+| `constants.MAX_LENGTH`              |   ✅   | `0x7fffffff` (2147483647 bytes).                                            |
+| `constants.MAX_STRING_LENGTH`       |   ✅   | `0x1fffffe8` (536870888 code units).                                        |
+| `INSPECT_MAX_BYTES`                 |   ✅   | `50` bytes.                                                                 |
+| `kMaxLength` / `kStringMaxLength`   |   ✅   | Module aliases for constants.                                               |
+| `SlowBuffer(size)`                  |   ✅   | Creates un-pooled Buffer instance.                                          |
 
 ---
 
-## Discrepancies and Limitations
+## Discrepancies and Implementation Notes
 
-1. **`Blob.prototype.stream()`:**
-   - Web standard `ReadableStream` streaming is omitted because it requires standard Web Streams integration in host runtimes.
+1. **`Buffer` Subclassing:**
+   - `Buffer` is implemented as a JavaScript subclass of `Uint8Array` (`class Buffer extends Uint8Array`) backed by fast NAPI Rust bindings. This ensures `buf instanceof Uint8Array` is `true`, matching Node.js behavior.
 
-2. **`resolveObjectURL()`:**
-   - Always throws a runtime exception indicating `blob: URLs are not supported by this binding`.
+2. **`resolveObjectURL`:**
+   - Registers Blob instances created via `URL.createObjectURL` and resolves them using `resolveObjectURL(id)`.
+
+3. **`transcode`:**
+   - Supported encodings are strictly checked against Node's supported set (`'ascii'`, `'utf8'`, `'utf16le'`, `'ucs2'`, `'latin1'`, `'binary'`). Invalid encodings throw an error matching Node specifications.
