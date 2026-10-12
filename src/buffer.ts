@@ -73,7 +73,7 @@ export class Buffer extends Uint8Array {
     return native.bufByteLength(string, encoding);
   }
 
-  static compare(buf1: Uint8Array, buf2: Uint8Array): -1 | 0 | 1 {
+  static compare(buf1: Uint8Array<any>, buf2: Uint8Array<any>): -1 | 0 | 1 {
     if (!(buf1 instanceof Uint8Array) || !(buf2 instanceof Uint8Array)) {
       throw new TypeError('The "buf1" and "buf2" arguments must be an instance of Uint8Array');
     }
@@ -81,7 +81,7 @@ export class Buffer extends Uint8Array {
     return (res < 0 ? -1 : res > 0 ? 1 : 0) as -1 | 0 | 1;
   }
 
-  static concat(list: readonly Uint8Array[], totalLength?: number): Buffer {
+  static concat(list: readonly Uint8Array<any>[], totalLength?: number): Buffer {
     if (!Array.isArray(list)) {
       throw new TypeError('The "list" argument must be an instance of Array');
     }
@@ -156,8 +156,67 @@ export class Buffer extends Uint8Array {
     return Buffer.from(items);
   }
 
+  override get [Symbol.toStringTag](): "Uint8Array" {
+    return "Uint8Array";
+  }
+
   get _isBuffer(): boolean {
     return true;
+  }
+
+  override toBase64(options?: {
+    alphabet?: "base64" | "base64url";
+    omitPadding?: boolean;
+  }): string {
+    const proto = Uint8Array.prototype as any;
+    if (typeof proto.toBase64 === "function" && options === undefined) {
+      return proto.toBase64.call(this, options);
+    }
+    const alphabet = options?.alphabet ?? "base64";
+    const omitPadding = options?.omitPadding ?? false;
+    let b64 = native.bufEncode(this, alphabet === "base64url" ? "base64url" : "base64");
+    if (omitPadding) {
+      b64 = b64.replace(/=+$/, "");
+    }
+    return b64;
+  }
+
+  override toHex(): string {
+    const proto = Uint8Array.prototype as any;
+    if (typeof proto.toHex === "function") {
+      return proto.toHex.call(this);
+    }
+    return native.bufEncode(this, "hex");
+  }
+
+  override setFromBase64(
+    base64: string,
+    offsetOrOptions: any = 0,
+  ): { read: number; written: number } {
+    const proto = Uint8Array.prototype as any;
+    if (typeof proto.setFromBase64 === "function") {
+      return proto.setFromBase64.call(this, base64, offsetOrOptions);
+    }
+    const offset = typeof offsetOrOptions === "number" ? offsetOrOptions : 0;
+    const decoded = native.bufDecode(base64, "base64");
+    const targetSlice = this.subarray(offset);
+    const written = decoded.copy(targetSlice, 0);
+    return { read: base64.length, written };
+  }
+
+  override setFromHex(hex: string, offsetOrOptions: any = 0): { read: number; written: number } {
+    const proto = Uint8Array.prototype as any;
+    if (typeof proto.setFromHex === "function") {
+      return proto.setFromHex.call(this, hex, offsetOrOptions);
+    }
+    const offset = typeof offsetOrOptions === "number" ? offsetOrOptions : 0;
+    if (hex.length % 2 !== 0) {
+      throw new TypeError("Hex string must have an even number of characters");
+    }
+    const decoded = native.bufDecode(hex, "hex");
+    const targetSlice = this.subarray(offset);
+    const written = decoded.copy(targetSlice, 0);
+    return { read: hex.length, written };
   }
 
   private _dv(): DataView {
@@ -199,7 +258,7 @@ export class Buffer extends Uint8Array {
     };
   }
 
-  equals(otherBuffer: Uint8Array): boolean {
+  equals(otherBuffer: Uint8Array<any>): boolean {
     if (!(otherBuffer instanceof Uint8Array)) {
       throw new TypeError("Argument must be a Uint8Array or Buffer");
     }
@@ -207,7 +266,7 @@ export class Buffer extends Uint8Array {
   }
 
   compare(
-    target: Uint8Array,
+    target: Uint8Array<any>,
     targetStart?: number,
     targetEnd?: number,
     sourceStart?: number,
@@ -230,7 +289,12 @@ export class Buffer extends Uint8Array {
     return Buffer.compare(srcSlice, tgtSlice);
   }
 
-  copy(target: Uint8Array, targetStart?: number, sourceStart?: number, sourceEnd?: number): number {
+  copy(
+    target: Uint8Array<any>,
+    targetStart?: number,
+    sourceStart?: number,
+    sourceEnd?: number,
+  ): number {
     if (!(target instanceof Uint8Array)) {
       throw new TypeError("Argument must be a Uint8Array or Buffer");
     }
@@ -249,7 +313,7 @@ export class Buffer extends Uint8Array {
   }
 
   override fill(
-    value: string | Uint8Array | number,
+    value: string | Uint8Array<any> | number,
     offset?: number,
     end?: number,
     encoding?: string,
@@ -259,7 +323,7 @@ export class Buffer extends Uint8Array {
   }
 
   override indexOf(
-    value: string | number | Uint8Array,
+    value: string | number | Uint8Array<any>,
     byteOffset?: number,
     encoding?: string,
   ): number {
@@ -267,7 +331,7 @@ export class Buffer extends Uint8Array {
   }
 
   override lastIndexOf(
-    value: string | number | Uint8Array,
+    value: string | number | Uint8Array<any>,
     byteOffset?: number,
     encoding?: string,
   ): number {
@@ -275,7 +339,7 @@ export class Buffer extends Uint8Array {
   }
 
   override includes(
-    value: string | number | Uint8Array,
+    value: string | number | Uint8Array<any>,
     byteOffset?: number,
     encoding?: string,
   ): boolean {
