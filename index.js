@@ -902,7 +902,192 @@ const {
   transcode,
 } = nativeBinding;
 
+NativeBuffer.prototype.BYTES_PER_ELEMENT = 1;
+
+Object.defineProperty(NativeBuffer.prototype, "buffer", {
+  get() {
+    return this.bytes().buffer;
+  },
+});
+
+Object.defineProperty(NativeBuffer.prototype, "byteOffset", {
+  get() {
+    return 0;
+  },
+});
+
+Object.defineProperty(NativeBuffer.prototype, "byteLength", {
+  get() {
+    return this.length;
+  },
+});
+
+NativeBuffer.prototype[Symbol.toStringTag] = "Uint8Array";
+
+NativeBuffer.prototype[Symbol.iterator] = function* () {
+  for (let i = 0; i < this.length; i++) {
+    yield this.readUint8(i);
+  }
+};
+
+NativeBuffer.prototype.at = function (index) {
+  const k = index < 0 ? this.length + index : index;
+  return k >= 0 && k < this.length ? this.readUint8(k) : undefined;
+};
+
+NativeBuffer.prototype.copyWithin = function (target, start, end) {
+  const u8 = new Uint8Array(this.bytes());
+  u8.copyWithin(target, start, end);
+  for (let i = 0; i < this.length; i++) {
+    this.writeUint8(u8[i], i);
+  }
+  return this;
+};
+
+NativeBuffer.prototype.entries = function* () {
+  for (let i = 0; i < this.length; i++) {
+    yield [i, this.readUint8(i)];
+  }
+};
+
+NativeBuffer.prototype.keys = function* () {
+  for (let i = 0; i < this.length; i++) {
+    yield i;
+  }
+};
+
+NativeBuffer.prototype.values = function* () {
+  for (let i = 0; i < this.length; i++) {
+    yield this.readUint8(i);
+  }
+};
+
+NativeBuffer.prototype.every = function (predicate, thisArg) {
+  return new Uint8Array(this.bytes()).every(predicate, thisArg);
+};
+
+NativeBuffer.prototype.filter = function (predicate, thisArg) {
+  const res = new Uint8Array(this.bytes()).filter(predicate, thisArg);
+  return Buffer.from(res);
+};
+
+NativeBuffer.prototype.find = function (predicate, thisArg) {
+  return new Uint8Array(this.bytes()).find(predicate, thisArg);
+};
+
+NativeBuffer.prototype.findIndex = function (predicate, thisArg) {
+  return new Uint8Array(this.bytes()).findIndex(predicate, thisArg);
+};
+
+NativeBuffer.prototype.findLast = function (predicate, thisArg) {
+  return new Uint8Array(this.bytes()).findLast(predicate, thisArg);
+};
+
+NativeBuffer.prototype.findLastIndex = function (predicate, thisArg) {
+  return new Uint8Array(this.bytes()).findLastIndex(predicate, thisArg);
+};
+
+NativeBuffer.prototype.forEach = function (callbackfn, thisArg) {
+  new Uint8Array(this.bytes()).forEach(callbackfn, thisArg);
+};
+
+NativeBuffer.prototype.join = function (separator) {
+  return new Uint8Array(this.bytes()).join(separator);
+};
+
+NativeBuffer.prototype.map = function (callbackfn, thisArg) {
+  const res = new Uint8Array(this.bytes()).map(callbackfn, thisArg);
+  return Buffer.from(res);
+};
+
+NativeBuffer.prototype.reduce = function (callbackfn, initialValue) {
+  const u8 = new Uint8Array(this.bytes());
+  return arguments.length > 1 ? u8.reduce(callbackfn, initialValue) : u8.reduce(callbackfn);
+};
+
+NativeBuffer.prototype.reduceRight = function (callbackfn, initialValue) {
+  const u8 = new Uint8Array(this.bytes());
+  return arguments.length > 1
+    ? u8.reduceRight(callbackfn, initialValue)
+    : u8.reduceRight(callbackfn);
+};
+
+NativeBuffer.prototype.set = function (array, offset = 0) {
+  const src = ArrayBuffer.isView(array) ? array : new Uint8Array(array);
+  for (let i = 0; i < src.length; i++) {
+    this.writeUint8(src[i], offset + i);
+  }
+};
+
+NativeBuffer.prototype.setFromBase64 = function (base64, offset = 0) {
+  const b = NativeBuffer.fromString(base64, "base64");
+  this.set(b.bytes(), offset);
+  return { read: base64.length, written: b.length };
+};
+
+NativeBuffer.prototype.setFromHex = function (hex, offset = 0) {
+  const b = NativeBuffer.fromString(hex, "hex");
+  this.set(b.bytes(), offset);
+  return { read: hex.length, written: b.length };
+};
+
+NativeBuffer.prototype.some = function (predicate, thisArg) {
+  return new Uint8Array(this.bytes()).some(predicate, thisArg);
+};
+
+NativeBuffer.prototype.sort = function (compareFn) {
+  const u8 = new Uint8Array(this.bytes());
+  u8.sort(compareFn);
+  for (let i = 0; i < this.length; i++) {
+    this.writeUint8(u8[i], i);
+  }
+  return this;
+};
+
+NativeBuffer.prototype.toBase64 = function (options) {
+  const enc = options?.alphabet === "base64url" ? "base64url" : "base64";
+  return this.toString(enc);
+};
+
+NativeBuffer.prototype.toHex = function () {
+  return this.toString("hex");
+};
+
+NativeBuffer.prototype.toLocaleString = function (locales, options) {
+  return new Uint8Array(this.bytes()).toLocaleString(locales, options);
+};
+
+NativeBuffer.prototype.toReversed = function () {
+  const u8 = new Uint8Array(this.bytes());
+  u8.reverse();
+  return Buffer.from(u8);
+};
+
+NativeBuffer.prototype.toSorted = function (compareFn) {
+  const u8 = new Uint8Array(this.bytes());
+  u8.sort(compareFn);
+  return Buffer.from(u8);
+};
+
+NativeBuffer.prototype.valueOf = function () {
+  return this;
+};
+
+NativeBuffer.prototype.with = function (index, value) {
+  const u8 = new Uint8Array(this.bytes());
+  u8[index] = value;
+  return Buffer.from(u8);
+};
+
 NativeBuffer.prototype.fill = function (value, offset, end, encoding) {
+  if (typeof offset === "string") {
+    encoding = offset;
+    offset = undefined;
+    end = undefined;
+  } else if (typeof end === "string") {
+    encoding = end;
+    end = undefined;
+  }
   if (typeof value === "number") {
     this.fillNumber(value, offset, end);
   } else if (typeof value === "string") {
@@ -916,6 +1101,10 @@ NativeBuffer.prototype.fill = function (value, offset, end, encoding) {
 };
 
 NativeBuffer.prototype.indexOf = function (value, byteOffset, encoding) {
+  if (typeof byteOffset === "string") {
+    encoding = byteOffset;
+    byteOffset = 0;
+  }
   if (typeof value === "number") {
     return this.indexOfNumber(value, byteOffset);
   }
@@ -923,6 +1112,10 @@ NativeBuffer.prototype.indexOf = function (value, byteOffset, encoding) {
 };
 
 NativeBuffer.prototype.lastIndexOf = function (value, byteOffset, encoding) {
+  if (typeof byteOffset === "string") {
+    encoding = byteOffset;
+    byteOffset = undefined;
+  }
   if (typeof value === "number") {
     return this.lastIndexOfNumber(value, byteOffset);
   }
@@ -930,6 +1123,10 @@ NativeBuffer.prototype.lastIndexOf = function (value, byteOffset, encoding) {
 };
 
 NativeBuffer.prototype.includes = function (value, byteOffset, encoding) {
+  if (typeof byteOffset === "string") {
+    encoding = byteOffset;
+    byteOffset = 0;
+  }
   if (typeof value === "number") {
     return this.includesNumber(value, byteOffset);
   }
@@ -956,6 +1153,14 @@ export class Buffer extends NativeBuffer {
         Array.from(new Uint8Array(value.buffer, value.byteOffset, value.byteLength)),
       );
     }
+    if (value && typeof value === "object") {
+      if (typeof value[Symbol.toPrimitive] === "function") {
+        return Buffer.from(value[Symbol.toPrimitive]("string"), encodingOrOffset);
+      }
+      if (typeof value.valueOf === "function" && value.valueOf() !== value) {
+        return Buffer.from(value.valueOf(), encodingOrOffset, length);
+      }
+    }
     throw new TypeError(
       "First argument must be a string, Buffer, ArrayBuffer, Array, or Array-like object.",
     );
@@ -978,6 +1183,11 @@ export class Buffer extends NativeBuffer {
 }
 
 export class Blob extends NativeBlob {
+  slice(start, end, contentType) {
+    const res = super.slice(start, end, contentType);
+    Object.setPrototypeOf(res, Blob.prototype);
+    return res;
+  }
   async text() {
     return super.text();
   }
@@ -990,6 +1200,11 @@ export class Blob extends NativeBlob {
 }
 
 export class File extends NativeFile {
+  slice(start, end, contentType) {
+    const res = super.slice(start, end, contentType);
+    Object.setPrototypeOf(res, Blob.prototype);
+    return res;
+  }
   async text() {
     return super.text();
   }

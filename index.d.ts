@@ -19,6 +19,84 @@ export declare class Blob {
 
 export declare class Buffer {
   constructor(length: number);
+  readonly BYTES_PER_ELEMENT: number;
+  get buffer(): ArrayBuffer;
+  get byteOffset(): number;
+  get byteLength(): number;
+  [Symbol.iterator](): IterableIterator<number>;
+  readonly [Symbol.toStringTag]: string;
+  at(index: number): number | undefined;
+  copyWithin(target: number, start: number, end?: number): this;
+  entries(): IterableIterator<[number, number]>;
+  keys(): IterableIterator<number>;
+  values(): IterableIterator<number>;
+  every(
+    predicate: (value: number, index: number, array: Uint8Array) => boolean,
+    thisArg?: any,
+  ): boolean;
+  filter(
+    predicate: (value: number, index: number, array: Uint8Array) => boolean,
+    thisArg?: any,
+  ): Buffer;
+  find(
+    predicate: (value: number, index: number, obj: Uint8Array) => boolean,
+    thisArg?: any,
+  ): number | undefined;
+  findIndex(
+    predicate: (value: number, index: number, obj: Uint8Array) => boolean,
+    thisArg?: any,
+  ): number;
+  findLast(
+    predicate: (value: number, index: number, array: Uint8Array) => boolean,
+    thisArg?: any,
+  ): number | undefined;
+  findLastIndex(
+    predicate: (value: number, index: number, array: Uint8Array) => boolean,
+    thisArg?: any,
+  ): number;
+  forEach(
+    callbackfn: (value: number, index: number, array: Uint8Array) => void,
+    thisArg?: any,
+  ): void;
+  join(separator?: string): string;
+  map(
+    callbackfn: (value: number, index: number, array: Uint8Array) => number,
+    thisArg?: any,
+  ): Buffer;
+  reduce(
+    callbackfn: (
+      previousValue: number,
+      currentValue: number,
+      currentIndex: number,
+      array: Uint8Array,
+    ) => number,
+    initialValue?: number,
+  ): number;
+  reduceRight(
+    callbackfn: (
+      previousValue: number,
+      currentValue: number,
+      currentIndex: number,
+      array: Uint8Array,
+    ) => number,
+    initialValue?: number,
+  ): number;
+  set(array: ArrayLike<number>, offset?: number): void;
+  setFromBase64(base64: string, offset?: number): { read: number; written: number };
+  setFromHex(hex: string, offset?: number): { read: number; written: number };
+  some(
+    predicate: (value: number, index: number, array: Uint8Array) => boolean,
+    thisArg?: any,
+  ): boolean;
+  sort(compareFn?: (a: number, b: number) => number): this;
+  toBase64(options?: { alphabet?: "base64" | "base64url"; omitPadding?: boolean }): string;
+  toHex(): string;
+  toLocaleString(locales?: string | string[], options?: any): string;
+  toReversed(): Buffer;
+  toSorted(compareFn?: (a: number, b: number) => number): Buffer;
+  valueOf(): this;
+  with(index: number, value: number): Buffer;
+
   static alloc(
     length: number,
     fill?: number | string,
@@ -48,7 +126,7 @@ export declare class Buffer {
   static fromString(string: string, encoding?: string | undefined | null): Buffer;
   static fromArray(items: Array<number>): Buffer;
   static from(
-    value: string | Buffer | ArrayBuffer | Array<number> | ArrayBufferView,
+    value: string | Buffer | ArrayBuffer | Array<number> | ArrayBufferView | object,
     encodingOrOffset?: string | number,
     length?: number,
   ): Buffer;
@@ -89,9 +167,12 @@ export declare class Buffer {
   readBigUint64BE(offset?: number | undefined | null): bigint;
   readUIntBe(offset: number, byteLength: number): number;
   readUintBE(offset: number, byteLength: number): number;
+  readUIntBE(offset: number, byteLength: number): number;
   readUIntLe(offset: number, byteLength: number): number;
   readUintLE(offset: number, byteLength: number): number;
+  readUIntLE(offset: number, byteLength: number): number;
   readIntBe(offset: number, byteLength: number): number;
+  readIntBE(offset: number, byteLength: number): number;
   readIntLE(offset: number, byteLength: number): number;
   readIntLe(offset: number, byteLength: number): number;
   readBigInt64Le(offset?: number | undefined | null): bigint;
@@ -129,9 +210,12 @@ export declare class Buffer {
   writeBigUint64BE(value: bigint, offset?: number | undefined | null): number;
   writeUIntBe(value: number, offset: number, byteLength: number): number;
   writeUintBE(value: number, offset: number, byteLength: number): number;
+  writeUIntBE(value: number, offset: number, byteLength: number): number;
   writeUIntLe(value: number, offset: number, byteLength: number): number;
   writeUintLE(value: number, offset: number, byteLength: number): number;
+  writeUIntLE(value: number, offset: number, byteLength: number): number;
   writeIntBe(value: number, offset: number, byteLength: number): number;
+  writeIntBE(value: number, offset: number, byteLength: number): number;
   writeIntLE(value: number, offset: number, byteLength: number): number;
   writeIntLe(value: number, offset: number, byteLength: number): number;
   writeBigInt64Le(value: bigint, offset?: number | undefined | null): number;
@@ -171,8 +255,8 @@ export declare class Buffer {
   ): void;
   fill(
     value: string | number | Buffer | Uint8Array,
-    offset?: number,
-    end?: number,
+    offset?: number | string,
+    end?: number | string,
     encoding?: string,
   ): this;
   equals(other: Buffer | Uint8Array): boolean;
@@ -185,7 +269,7 @@ export declare class Buffer {
   ): number;
   indexOf(
     value: string | number | Buffer | Uint8Array,
-    byteOffset?: number,
+    byteOffset?: number | string,
     encoding?: string,
   ): number;
   lastIndexOfNumber(value: number, offset?: number | undefined | null): number;
@@ -196,7 +280,7 @@ export declare class Buffer {
   ): number;
   lastIndexOf(
     value: string | number | Buffer | Uint8Array,
-    byteOffset?: number,
+    byteOffset?: number | string,
     encoding?: string,
   ): number;
   includesNumber(value: number, offset?: number | undefined | null): boolean;
@@ -207,7 +291,7 @@ export declare class Buffer {
   ): boolean;
   includes(
     value: string | number | Buffer | Uint8Array,
-    byteOffset?: number,
+    byteOffset?: number | string,
     encoding?: string,
   ): boolean;
   copy(

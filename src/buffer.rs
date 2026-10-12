@@ -617,7 +617,7 @@ impl Buffer {
     self.read_u_int_le(offset, byte_length)
   }
 
-  #[napi]
+  #[napi(js_name = "readIntBE")]
   pub fn read_int_be(&self, offset: u32, byte_length: u32) -> Result<f64> {
     let o = offset as usize;
     let bl = byte_length as usize;
@@ -635,7 +635,7 @@ impl Buffer {
     Ok((val as i64) as f64)
   }
 
-  #[napi]
+  #[napi(js_name = "readIntLE")]
   pub fn read_int_le(&self, offset: u32, byte_length: u32) -> Result<f64> {
     let o = offset as usize;
     let bl = byte_length as usize;
@@ -876,14 +876,34 @@ impl Buffer {
     self.write_u_int_le(value, offset, byte_length)
   }
 
-  #[napi]
+  #[napi(js_name = "writeIntBE")]
   pub fn write_int_be(&mut self, value: f64, offset: u32, byte_length: u32) -> Result<u32> {
-    self.write_u_int_be(value, offset, byte_length)
+    let o = offset as usize;
+    let bl = byte_length as usize;
+    if bl == 0 || bl > 6 {
+      return Err(Error::new(Status::GenericFailure, "byteLength must be between 1 and 6"));
+    }
+    self.check(o, bl)?;
+    let v = (value as i64) as u64;
+    for i in (0..bl).rev() {
+      self.data[o + i] = ((v >> ((bl - 1 - i) * 8)) & 0xff) as u8;
+    }
+    Ok((o + bl) as u32)
   }
 
-  #[napi]
+  #[napi(js_name = "writeIntLE")]
   pub fn write_int_le(&mut self, value: f64, offset: u32, byte_length: u32) -> Result<u32> {
-    self.write_u_int_le(value, offset, byte_length)
+    let o = offset as usize;
+    let bl = byte_length as usize;
+    if bl == 0 || bl > 6 {
+      return Err(Error::new(Status::GenericFailure, "byteLength must be between 1 and 6"));
+    }
+    self.check(o, bl)?;
+    let v = (value as i64) as u64;
+    for i in 0..bl {
+      self.data[o + i] = ((v >> (i * 8)) & 0xff) as u8;
+    }
+    Ok((o + bl) as u32)
   }
 
   #[napi(js_name = "writeBigInt64LE")]
@@ -1428,6 +1448,20 @@ impl Buffer {
 pub struct BufferJson {
   pub r#type: String,
   pub data: Vec<u32>,
+}
+
+#[allow(dead_code)]
+#[napi(object)]
+pub struct BufferSetResult {
+  pub read: u32,
+  pub written: u32,
+}
+
+#[allow(dead_code)]
+#[napi(object)]
+pub struct Base64Options {
+  pub alphabet: Option<String>,
+  pub omit_padding: Option<bool>,
 }
 
 // ===========================================================================
