@@ -406,3 +406,78 @@ test("Buffer.copyBytesFrom copies the underlying memory of a TypedArray", () => 
   expect(buf[0]).toBe(255);
   expect(buf[1]).toBe(255);
 });
+
+test("toBase64, toHex, setFromBase64, setFromHex", () => {
+  const buf = Buffer.from("hello world");
+  expect(buf.toHex()).toBe("68656c6c6f20776f726c64");
+  expect(buf.toBase64()).toBe("aGVsbG8gd29ybGQ=");
+  expect(buf.toBase64({ alphabet: "base64url" })).toBe("aGVsbG8gd29ybGQ");
+  expect(buf.toBase64({ omitPadding: true })).toBe("aGVsbG8gd29ybGQ");
+
+  const target1 = Buffer.alloc(11);
+  const res1 = target1.setFromHex("68656c6c6f20776f726c64");
+  expect(res1.written).toBe(11);
+  expect(target1.toString()).toBe("hello world");
+
+  const target2 = Buffer.alloc(11);
+  const res2 = target2.setFromBase64("aGVsbG8gd29ybGQ=");
+  expect(res2.written).toBe(11);
+  expect(target2.toString()).toBe("hello world");
+
+  expect(() => Buffer.alloc(5).setFromHex("123")).toThrow(TypeError);
+});
+
+test("Symbol.toStringTag and Symbol.iterator", () => {
+  const buf = Buffer.from([10, 20, 30]);
+  expect(buf[Symbol.toStringTag]).toBe("Uint8Array");
+  expect(Object.prototype.toString.call(buf)).toBe("[object Uint8Array]");
+
+  const items: number[] = [];
+  for (const byte of buf) {
+    items.push(byte);
+  }
+  expect(items).toEqual([10, 20, 30]);
+});
+
+test("inherited Uint8Array methods (at, copyWithin, entries, keys, values, search, transform)", () => {
+  const buf = Buffer.from([10, 20, 30, 40, 50]);
+
+  // at
+  expect(buf.at(0)).toBe(10);
+  expect(buf.at(-1)).toBe(50);
+
+  // entries, keys, values
+  expect(Array.from(buf.entries())).toEqual([
+    [0, 10],
+    [1, 20],
+    [2, 30],
+    [3, 40],
+    [4, 50],
+  ]);
+  expect(Array.from(buf.keys())).toEqual([0, 1, 2, 3, 4]);
+  expect(Array.from(buf.values())).toEqual([10, 20, 30, 40, 50]);
+
+  // every, some, filter, map, reduce, reduceRight
+  expect(buf.every((v) => v > 0)).toBe(true);
+  expect(buf.some((v) => v === 30)).toBe(true);
+  expect(Array.from(buf.filter((v) => v >= 30))).toEqual([30, 40, 50]);
+  expect(Array.from(buf.map((v) => v + 1))).toEqual([11, 21, 31, 41, 51]);
+  expect(buf.reduce((acc, v) => acc + v, 0)).toBe(150);
+  expect(buf.reduceRight((acc, v) => acc + v, 0)).toBe(150);
+
+  // find, findIndex, findLast, findLastIndex
+  expect(buf.find((v) => v > 25)).toBe(30);
+  expect(buf.findIndex((v) => v > 25)).toBe(2);
+  expect(buf.findLast((v) => v < 45)).toBe(40);
+  expect(buf.findLastIndex((v) => v < 45)).toBe(3);
+
+  // join, copyWithin, toReversed, toSorted, with
+  expect(buf.join("-")).toBe("10-20-30-40-50");
+  expect(Array.from(buf.toReversed())).toEqual([50, 40, 30, 20, 10]);
+  expect(Array.from(Buffer.from([3, 1, 2]).toSorted())).toEqual([1, 2, 3]);
+  expect(Array.from(buf.with(2, 99))).toEqual([10, 20, 99, 40, 50]);
+
+  const cwBuf = Buffer.from([1, 2, 3, 4, 5]);
+  cwBuf.copyWithin(0, 3);
+  expect(Array.from(cwBuf)).toEqual([4, 5, 3, 4, 5]);
+});
