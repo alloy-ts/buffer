@@ -89,7 +89,7 @@ test("Buffer.concat", () => {
   const totalLength = buf1.length + buf2.length + buf3.length;
   expect(totalLength).toBe(42);
 
-  const bufA = Buffer.concat([buf1, buf2, buf3], totalLength);
+  const bufA = Buffer.concat([buf1 as any, buf2 as any, buf3 as any], totalLength);
   expect(bufA.length).toBe(42);
   expect(Buffer.isBuffer(bufA)).toBe(true);
 });
@@ -99,16 +99,16 @@ test("Buffer.compare and buf.equals", () => {
   const buf2 = Buffer.from("414243", "hex");
   const buf3 = Buffer.from("ABCD");
 
-  expect(buf1.equals(buf2)).toBe(true);
-  expect(buf1.equals(buf3)).toBe(false);
+  expect(buf1.equals(buf2 as any)).toBe(true);
+  expect(buf1.equals(buf3 as any)).toBe(false);
 
-  expect(buf1.compare(buf1)).toBe(0);
-  expect(buf1.compare(buf2)).toBe(0);
-  expect(buf1.compare(buf3)).toBe(-1);
-  expect(buf3.compare(buf1)).toBe(1);
+  expect(buf1.compare(buf1 as any)).toBe(0);
+  expect(buf1.compare(buf2 as any)).toBe(0);
+  expect(buf1.compare(buf3 as any)).toBe(-1);
+  expect(buf3.compare(buf1 as any)).toBe(1);
 
   const arr = [buf3, buf1];
-  arr.sort((a, b) => Buffer.compare(a, b));
+  arr.sort((a, b) => Buffer.compare(a as any, b as any));
   expect(arr[0]!.toString()).toBe("ABC");
   expect(arr[1]!.toString()).toBe("ABCD");
 });
@@ -145,7 +145,7 @@ test("buf.copy", () => {
     buf1[i] = i + 97;
   }
 
-  buf1.copy(buf2, 8, 16, 20);
+  buf1.copy(buf2 as any, 8, 16, 20);
   expect(buf2.toString("ascii", 0, 25)).toBe("!!!!!!!!qrst!!!!!!!!!!!!!");
 });
 
@@ -185,6 +185,23 @@ test("buf.swap16, swap32, swap64", () => {
   expect(Array.from(buf3)).toEqual([8, 7, 6, 5, 4, 3, 2, 1]);
 
   expect(() => Buffer.from([1, 2, 3]).swap16()).toThrow();
+});
+
+test("buf.toHex, toBase64, setFromHex, setFromBase64", () => {
+  const buf = Buffer.from("hello world");
+  expect(buf.toHex()).toBe("68656c6c6f20776f726c64");
+  expect(buf.toBase64()).toBe("aGVsbG8gd29ybGQ=");
+  expect(buf.toBase64({ omitPadding: true })).toBe("aGVsbG8gd29ybGQ");
+
+  const target = Buffer.alloc(11);
+  const hexRes = target.setFromHex("68656c6c6f20776f726c64");
+  expect(hexRes.written).toBe(11);
+  expect(target.toString()).toBe("hello world");
+
+  const target2 = Buffer.alloc(11);
+  const b64Res = target2.setFromBase64("aGVsbG8gd29ybGQ=");
+  expect(b64Res.written).toBe(11);
+  expect(target2.toString()).toBe("hello world");
 });
 
 test("buf.toJSON", () => {
@@ -275,7 +292,7 @@ test("File class", () => {
 });
 
 test("transcode, resolveObjectURL and constants", () => {
-  const newBuf = transcode(Buffer.from("€"), "utf8", "ascii");
+  const newBuf = transcode(Buffer.from("€") as any, "utf8", "ascii");
   expect(newBuf.toString("ascii")).toBe("?");
 
   expect(() => resolveObjectURL("blob:nodedata:test")).toThrow(
