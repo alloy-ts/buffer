@@ -12,7 +12,7 @@ export type TypedArray =
   | Float32Array
   | Float64Array
   | BigInt64Array
-  | BigUint64Array;
+  | BigUint64Array
 
 /**
  * Which binding artifact the generated loader actually loaded: `'native'` for
@@ -20,52 +20,48 @@ export type TypedArray =
  * flavor napi-rs can build is listed, because `NAPI_RS_NATIVE_LIBRARY_PATH`
  * can point the loader at a WASI artifact this package does not build itself.
  */
-export declare const __napiBindingTarget: "native" | "wasm32-wasi" | "wasm32-wasip1";
+export declare const __napiBindingTarget: 'native' | 'wasm32-wasi' | 'wasm32-wasip1'
 
 export declare class Blob {
   /**
    * Creates a Blob from a list of string / ArrayBuffer / TypedArray /
    * DataView / Blob parts.
    */
-  constructor(sources: Array<unknown>, options?: BlobOptions | undefined | null);
+  constructor(sources: Array<unknown>, options?: BlobOptions | undefined | null)
   /** Returns a copy of the Blob's data as an ArrayBuffer. */
-  arrayBuffer(): ArrayBuffer;
+  arrayBuffer(): ArrayBuffer
   /** Returns a copy of the Blob's data as a Buffer. */
-  bytes(): Buffer;
+  bytes(): Buffer
   /** Returns the Blob's data decoded as UTF-8. */
-  text(): string;
+  text(): string
   /** Creates a new Blob containing a subset of this Blob's data. */
-  slice(
-    start?: number | undefined | null,
-    end?: number | undefined | null,
-    contentType?: string | undefined | null,
-  ): Blob;
+  slice(start?: number | undefined | null, end?: number | undefined | null, contentType?: string | undefined | null): Blob
   /** The total size of the Blob in bytes. */
-  get size(): number;
+  get size(): number
   /** The content-type of the Blob. */
-  get type(): string;
+  get type(): string
 }
 
 export declare class Bytes {
   /** Creates a new empty `Bytes`. This does not allocate. */
-  constructor();
+  constructor()
   /**
    * Creates a `Bytes` by copying the contents of the given buffer.
    *
    * Corresponds to `Bytes::copy_from_slice` / `Bytes::from(Vec<u8>)`.
    */
-  static fromBuffer(buffer: Buffer): Bytes;
+  static fromBuffer(buffer: Buffer): Bytes
   /** Returns the number of bytes contained in this `Bytes`. */
-  len(): number;
+  len(): number
   /** Returns true if the `Bytes` has a length of 0. */
-  isEmpty(): boolean;
+  isEmpty(): boolean
   /**
    * Returns true if this is the only reference to the data and a conversion
    * into a uniquely-owned buffer would avoid copying the underlying memory.
    *
    * Always returns false for static / owner-backed data.
    */
-  isUnique(): boolean;
+  isUnique(): boolean
   /**
    * Returns a slice of self for the half-open range `[start, end)`.
    *
@@ -73,29 +69,29 @@ export declare class Bytes {
    * that increments the reference count; the returned `Bytes` shares the
    * same backing storage as `self`.
    */
-  slice(start: number, end?: number | undefined | null): Bytes;
+  slice(start: number, end?: number | undefined | null): Bytes
   /**
    * Splits the bytes into two at `at`.
    *
    * After the call `self` contains elements `[0, at)` and the returned
    * `Bytes` contains `[at, len)`. O(1).
    */
-  splitOff(at: number): Bytes;
+  splitOff(at: number): Bytes
   /**
    * Splits the bytes into two at `at`.
    *
    * After the call `self` contains elements `[at, len)` and the returned
    * `Bytes` contains `[0, at)`. O(1).
    */
-  splitTo(at: number): Bytes;
+  splitTo(at: number): Bytes
   /**
    * Shortens the buffer, keeping the first `len` bytes and dropping the rest.
    *
    * If `len` is greater than the current length this has no effect.
    */
-  truncate(len: number): void;
+  truncate(len: number): void
   /** Clears the buffer, removing all data. */
-  clear(): void;
+  clear(): void
   /**
    * Attempts to obtain a uniquely-owned view of the data.
    *
@@ -107,182 +103,125 @@ export declare class Bytes {
    * which cannot be exposed through napi without a dedicated mutable binding;
    * this is a faithful read-oriented approximation.
    */
-  tryIntoMut(): Bytes | null;
+  tryIntoMut(): Bytes | null
   /**
    * Returns a copy of the visible bytes as a Node `Buffer`.
    *
    * This is a copy: napi-rs cannot hand out a zero-copy view that outlives
    * the call. Use `slice`/`split_*` to share storage cheaply inside Rust.
    */
-  asSlice(): Buffer;
+  asSlice(): Buffer
   /**
    * Returns a node:buffer-compatible `Buffer` (a copy) over this `Bytes`.
    *
    * The returned `Buffer` is an independent, writable copy, so this `Bytes`
    * remains usable afterwards.
    */
-  buf(): Buffer;
+  buf(): Buffer
 }
 
 export declare class File {
   /** Creates a File from a list of parts plus a file name. */
-  constructor(sources: Array<unknown>, fileName: string, options?: FileOptions | undefined | null);
+  constructor(sources: Array<unknown>, fileName: string, options?: FileOptions | undefined | null)
   /** Returns a copy of the File's data as an ArrayBuffer. */
-  arrayBuffer(): ArrayBuffer;
+  arrayBuffer(): ArrayBuffer
   /** Returns a copy of the File's data as a Buffer. */
-  bytes(): Buffer;
+  bytes(): Buffer
   /** Returns the File's data decoded as UTF-8. */
-  text(): string;
+  text(): string
   /** Creates a new File containing a subset of this File's data. */
-  slice(
-    start?: number | undefined | null,
-    end?: number | undefined | null,
-    contentType?: string | undefined | null,
-  ): File;
+  slice(start?: number | undefined | null, end?: number | undefined | null, contentType?: string | undefined | null): File
   /** The name of the File. */
-  get name(): string;
+  get name(): string
   /** The last modified time of the File (milliseconds since epoch). */
-  get lastModified(): number;
+  get lastModified(): number
   /** The content-type of the File. */
-  get type(): string;
+  get type(): string
   /** The total size of the File in bytes. */
-  get size(): number;
+  get size(): number
 }
 
-export declare function add(left: number, right: number): number;
+export declare function add(left: number, right: number): number
 
 /** Decodes a Base64 string into bytes and re-encodes those bytes as Latin-1. */
-export declare function atob(data: string): string;
+export declare function atob(data: string): string
 
 export interface BlobOptions {
-  endings?: string;
-  type?: string;
+  endings?: string
+  type?: string
 }
 
 /** Decodes a string as Latin-1 into bytes and encodes those bytes as Base64. */
-export declare function btoa(data: string): string;
+export declare function btoa(data: string): string
 
 /** `Buffer.byteLength(value[, encoding])`. */
-export declare function bufByteLength(value: unknown, encoding?: string | undefined | null): number;
+export declare function bufByteLength(value: unknown, encoding?: string | undefined | null): number
 
 /** `Buffer.compare(buf1, buf2)`. */
-export declare function bufCompare(buf1: Buffer, buf2: Buffer): number;
+export declare function bufCompare(buf1: Buffer, buf2: Buffer): number
 
 /** `Buffer.concat(list[, totalLength])`. */
-export declare function bufConcat(
-  list: Array<Buffer>,
-  totalLength?: number | undefined | null,
-): Buffer;
+export declare function bufConcat(list: Array<Buffer>, totalLength?: number | undefined | null): Buffer
 
 /** `Buffer.copyBytesFrom(view[, offset[, length]])`. */
-export declare function bufCopyBytesFrom(
-  view: unknown,
-  offset?: number | undefined | null,
-  length?: number | undefined | null,
-): Buffer;
+export declare function bufCopyBytesFrom(view: unknown, offset?: number | undefined | null, length?: number | undefined | null): Buffer
 
 /**
  * `Buffer.from(value[, arg1[, arg2]])` — the string overload returns a
  * `Buffer`; the JS class handles ArrayBuffer / TypedArray / Buffer / array
  * overloads itself (they only need to share or copy bytes).
  */
-export declare function bufDecode(
-  value: unknown,
-  arg1?: unknown | undefined | null,
-  arg2?: unknown | undefined | null,
-): Buffer;
+export declare function bufDecode(value: unknown, arg1?: unknown | undefined | null, arg2?: unknown | undefined | null): Buffer
 
 /** `buf.toString(encoding[, start[, end]])`. */
-export declare function bufEncode(
-  buf: Buffer,
-  encoding?: string | undefined | null,
-  start?: number | undefined | null,
-  end?: number | undefined | null,
-): string;
+export declare function bufEncode(buf: Buffer, encoding?: string | undefined | null, start?: number | undefined | null, end?: number | undefined | null): string
 
 export interface BufferConstants {
-  maxLength: number;
-  maxStringLength: number;
+  maxLength: number
+  maxStringLength: number
 }
 
 /** `buf.fill(value[, start[, end]][, encoding])`. */
-export declare function bufFill(
-  buf: Buffer,
-  value: unknown,
-  start?: number | undefined | null,
-  end?: number | undefined | null,
-  encoding?: string | undefined | null,
-): void;
+export declare function bufFill(buf: Buffer, value: unknown, start?: number | undefined | null, end?: number | undefined | null, encoding?: string | undefined | null): void
 
 /** `buf.includes(value[, byteOffset[, end]][, encoding])`. */
-export declare function bufIncludes(
-  buf: Buffer,
-  value: unknown,
-  byteOffset?: number | undefined | null,
-  end?: number | undefined | null,
-  encoding?: string | undefined | null,
-): boolean;
+export declare function bufIncludes(buf: Buffer, value: unknown, byteOffset?: number | undefined | null, end?: number | undefined | null, encoding?: string | undefined | null): boolean
 
 /** `buf.indexOf(value[, byteOffset[, end]][, encoding])`. */
-export declare function bufIndexOf(
-  buf: Buffer,
-  value: unknown,
-  byteOffset?: number | undefined | null,
-  end?: number | undefined | null,
-  encoding?: string | undefined | null,
-): number;
+export declare function bufIndexOf(buf: Buffer, value: unknown, byteOffset?: number | undefined | null, end?: number | undefined | null, encoding?: string | undefined | null): number
 
 /** `Buffer.isEncoding(encoding)`. */
-export declare function bufIsEncoding(encoding: string): boolean;
+export declare function bufIsEncoding(encoding: string): boolean
 
 /** `buf.lastIndexOf(value[, byteOffset[, end]][, encoding])`. */
-export declare function bufLastIndexOf(
-  buf: Buffer,
-  value: unknown,
-  byteOffset?: number | undefined | null,
-  end?: number | undefined | null,
-  encoding?: string | undefined | null,
-): number;
+export declare function bufLastIndexOf(buf: Buffer, value: unknown, byteOffset?: number | undefined | null, end?: number | undefined | null, encoding?: string | undefined | null): number
 
 /** `Buffer.stringLength(input[, encoding])`. */
-export declare function bufStringLength(
-  input: unknown,
-  encoding?: string | undefined | null,
-): number;
+export declare function bufStringLength(input: unknown, encoding?: string | undefined | null): number
 
 /** `buf.write(string[, offset[, length]][, encoding])`. */
-export declare function bufWrite(
-  buf: Buffer,
-  string: string,
-  offset?: number | undefined | null,
-  length?: number | undefined | null,
-  encoding?: string | undefined | null,
-): number;
+export declare function bufWrite(buf: Buffer, string: string, offset?: number | undefined | null, length?: number | undefined | null, encoding?: string | undefined | null): number
 
 export interface FileOptions {
-  endings?: string;
-  type?: string;
-  lastModified?: number;
+  endings?: string
+  type?: string
+  lastModified?: number
 }
 
 /** Returns true if `input` contains only ASCII bytes. */
-export declare function isAscii(input: unknown): boolean;
+export declare function isAscii(input: unknown): boolean
 
 /**
  * Returns true if `input` is a valid WebIDL ByteString (every UTF-16 code unit
  * is in U+0000..U+00FF).
  */
-export declare function isLatin1(input: string): boolean;
+export declare function isLatin1(input: string): boolean
 
 /** Returns true if `input` is valid UTF-8. */
-export declare function isUtf8(input: unknown): boolean;
+export declare function isUtf8(input: unknown): boolean
 
 /** Resolves a `blob:nodedata:` URL into a Blob. Not supported in this binding. */
-export declare function resolveObjectURL(id: string): Blob;
+export declare function resolveObjectURL(id: string): Blob
 
 /** Re-encodes `source` from `from_encoding` to `to_encoding`. */
-export declare function transcode(
-  source: unknown,
-  fromEncoding: string,
-  toEncoding: string,
-): Buffer;
+export declare function transcode(source: unknown, fromEncoding: string, toEncoding: string): Buffer
