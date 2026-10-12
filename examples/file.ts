@@ -11,7 +11,7 @@
  * Note: unlike the Web `File` (whose `text()`/`bytes()`/`arrayBuffer()` return
  * Promises), this native binding implements them synchronously.
  */
-import { File, Blob, Buffer } from "../src/buffer.ts";
+import { File, Blob, Buffer } from "../dist/index.js";
 
 const log = (label: string, value: unknown): void => {
   console.log(`\x1b[36m${label}\x1b[0m`, value);

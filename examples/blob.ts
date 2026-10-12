@@ -24,7 +24,7 @@ import {
   isLatin1,
   transcode,
   Buffer,
-} from "../src/buffer.ts";
+} from "../dist/index.js";
 
 const log = (label: string, value: unknown): void => {
   console.log(`\x1b[36m${label}\x1b[0m`, value);

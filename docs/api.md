@@ -18,7 +18,7 @@ The build produces:
 | `dist/index.js` (+ root `index.js`)     | NAPI-RS loader that resolves and re-exports the native symbols. |
 | `dist/index.d.ts` (+ root `index.d.ts`) | Generated TypeScript declarations for every native export.      |
 | `dist/alloy-buffer.<platform>.node`         | The compiled native addon (the actual NAPI bindings).           |
-| `src/buffer.ts`                         | JS layer: `class Buffer extends Uint8Array` + re-exports.       |
+| `src/buffer.rs`                         | Rust `#[napi]` source that generates the native `Buffer` class + constants. |
 | `src/bytes.rs` / native `Bytes`         | NAPI binding for the `bytes::Bytes` type (extra, see below).    |
 
 > Note: the JS-wrapper packing step (`vp pack` → `dist/main.mjs`) currently fails
@@ -206,7 +206,8 @@ test suite (`src/buffer.test.ts`, `src/bytes.test.ts`).
 
 9. **TypeScript declarations.** `index.d.ts` declares the native `Blob`,
    `File`, `Bytes` classes, the `BlobOptions` / `FileOptions` interfaces, and the
-   free functions. It does **not** (yet) emit the `Buffer`, `BufferConstructor`,
+   free functions. It does **not** emit the `BufferConstructor`,
    `BufferEncoding`, `TranscodeEncoding`, `WithImplicitCoercion`, or
-   `ImplicitArrayBuffer` type aliases — those live on the JS wrapper
-   (`src/buffer.ts`) and are not surfaced through the generated `index.d.ts`.
+   `ImplicitArrayBuffer` type aliases — the hand-written JS wrapper
+   (`src/buffer.ts`) that carried them has been removed; the `Buffer` *class*
+   itself is now generated directly from `src/buffer.rs` via `#[napi]`.
