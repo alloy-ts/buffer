@@ -146,6 +146,11 @@ export declare function add(left: number, right: number): number
 /** Decodes a Base64 string into bytes and re-encodes those bytes as Latin-1. */
 export declare function atob(data: string): string
 
+export interface Base64Options {
+  alphabet?: string
+  omitPadding?: boolean
+}
+
 export interface BlobOptions {
   endings?: string
   type?: string
@@ -196,8 +201,20 @@ export declare function bufIsEncoding(encoding: string): boolean
 /** `buf.lastIndexOf(value[, byteOffset[, end]][, encoding])`. */
 export declare function bufLastIndexOf(buf: Buffer, value: unknown, byteOffset?: number | undefined | null, end?: number | undefined | null, encoding?: string | undefined | null): number
 
+/** Decode base64 into target buffer at offset. */
+export declare function bufSetFromBase64(buf: Buffer, base64: string, offset?: number | undefined | null): ReadWrittenResult
+
+/** Decode hex into target buffer at offset. */
+export declare function bufSetFromHex(buf: Buffer, hex: string, offset?: number | undefined | null): ReadWrittenResult
+
 /** `Buffer.stringLength(input[, encoding])`. */
 export declare function bufStringLength(input: unknown, encoding?: string | undefined | null): number
+
+/** Convert buffer to base64 encoded string. */
+export declare function bufToBase64(buf: Buffer, options?: Base64Options | undefined | null): string
+
+/** Convert buffer to hex encoded string. */
+export declare function bufToHex(buf: Buffer): string
 
 /** `buf.write(string[, offset[, length]][, encoding])`. */
 export declare function bufWrite(buf: Buffer, string: string, offset?: number | undefined | null, length?: number | undefined | null, encoding?: string | undefined | null): number
@@ -219,6 +236,11 @@ export declare function isLatin1(input: string): boolean
 
 /** Returns true if `input` is valid UTF-8. */
 export declare function isUtf8(input: unknown): boolean
+
+export interface ReadWrittenResult {
+  read: number
+  written: number
+}
 
 /** Resolves a `blob:nodedata:` URL into a Blob. Not supported in this binding. */
 export declare function resolveObjectURL(id: string): Blob

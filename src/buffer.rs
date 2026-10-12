@@ -658,6 +658,92 @@ pub fn buf_includes(
   Ok(buf_index_of(env, buf, value, byte_offset, end, encoding)? >= 0)
 }
 
+#[napi(object)]
+pub struct Base64Options {
+  pub alphabet: Option<String>,
+  pub omit_padding: Option<bool>,
+}
+
+#[napi(object)]
+pub struct ReadWrittenResult {
+  pub read: u32,
+  pub written: u32,
+}
+
+/// Convert buffer to base64 encoded string.
+#[napi(js_name = "bufToBase64")]
+pub fn buf_to_base64(buf: Buffer, options: Option<Base64Options>) -> String {
+  let data = buf.as_ref();
+  let url = options
+    .as_ref()
+    .and_then(|o| o.alphabet.as_deref())
+    .map(|a| a == "base64url")
+    .unwrap_or(false);
+  let omit_padding = options
+    .as_ref()
+    .and_then(|o| o.omit_padding)
+    .unwrap_or(false);
+
+  let mut s = encode_base64(data, url);
+  if omit_padding {
+    while s.ends_with('=') {
+      s.pop();
+    }
+  }
+  s
+}
+
+/// Convert buffer to hex encoded string.
+#[napi(js_name = "bufToHex")]
+pub fn buf_to_hex(buf: Buffer) -> String {
+  encode_hex(buf.as_ref())
+}
+
+/// Decode base64 into target buffer at offset.
+#[napi(js_name = "bufSetFromBase64")]
+pub fn buf_set_from_base64(mut buf: Buffer, base64: String, offset: Option<u32>) -> Result<ReadWrittenResult> {
+  let decoded = decode_base64(&base64, false)?;
+  let data = buf.as_mut();
+  let o = (offset.unwrap_or(0) as usize).min(data.len());
+  let max = data.len() - o;
+  let written = decoded.len().min(max);
+  if written > 0 {
+    data[o..o + written].copy_from_slice(&decoded[..written]);
+  }
+  let read = if written == decoded.len() {
+    base64.len()
+  } else {
+    // 3 bytes per 4 base64 chars
+    ((written / 3) * 4).min(base64.len())
+  };
+  Ok(ReadWrittenResult {
+    read: read as u32,
+    written: written as u32,
+  })
+}
+
+/// Decode hex into target buffer at offset.
+#[napi(js_name = "bufSetFromHex")]
+pub fn buf_set_from_hex(mut buf: Buffer, hex: String, offset: Option<u32>) -> Result<ReadWrittenResult> {
+  let decoded = decode_hex(&hex)?;
+  let data = buf.as_mut();
+  let o = (offset.unwrap_or(0) as usize).min(data.len());
+  let max = data.len() - o;
+  let written = decoded.len().min(max);
+  if written > 0 {
+    data[o..o + written].copy_from_slice(&decoded[..written]);
+  }
+  let read = if written == decoded.len() {
+    hex.len()
+  } else {
+    written * 2
+  };
+  Ok(ReadWrittenResult {
+    read: read as u32,
+    written: written as u32,
+  })
+}
+
 // ===========================================================================
 // Blob / File
 // ===========================================================================
