@@ -453,7 +453,7 @@ pub fn buf_concat(list: Vec<Buffer>, total_length: Option<u32>) -> Buffer {
   for b in &list {
     out.extend_from_slice(b.as_ref());
   }
-  out.truncate(total);
+  out.resize(total, 0);
   Buffer::from(out)
 }
 
