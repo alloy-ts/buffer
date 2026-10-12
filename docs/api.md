@@ -1,6 +1,6 @@
 # `node:buffer` API Compatibility Matrix
 
-This document provides a detailed review of our built native artifact and TypeScript library against the standard Node.js `node:buffer` API specification.
+This document provides a detailed review of our built native artifact (`dist/` & `index.js`) and TypeScript library against the standard Node.js `node:buffer` API specification.
 
 ## Compatibility Summary
 
