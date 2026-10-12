@@ -124,6 +124,12 @@ test("Buffer.prototype instance methods", () => {
   expect(Array.from(swapBuf32)).toEqual([0x4, 0x3, 0x2, 0x1, 0x8, 0x7, 0x6, 0x5]);
 });
 
+test("Buffer Uint8Array prototype methods", () => {
+  const buf = Buffer.from([10, 20, 30, 40]);
+  expect(buf.at(0)).toBe(10);
+  expect(buf.at(-1)).toBe(40);
+});
+
 test("Buffer numeric read and write", () => {
   const buf = Buffer.alloc(16);
 

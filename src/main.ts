@@ -260,18 +260,16 @@ function searchBuffer(
     throw new TypeError("value must be a string, number, or Uint8Array/Buffer");
   }
 
+  let start = byteOffset;
+  if (Number.isNaN(start)) start = reverse ? buf.length : 0;
+  if (start < 0) start = Math.max(0, buf.length + start);
+  start = Math.min(start, buf.length);
+
   if (needle.length === 0) {
-    if (reverse) {
-      return Math.min(byteOffset, buf.length);
-    }
-    return Math.min(byteOffset, buf.length);
+    return start;
   }
 
   if (buf.length === 0 || needle.length > buf.length) return -1;
-
-  let start = byteOffset;
-  if (Number.isNaN(start)) start = reverse ? buf.length - 1 : 0;
-  if (start < 0) start = buf.length + start;
 
   if (reverse) {
     start = Math.min(start, buf.length - needle.length);
@@ -286,7 +284,6 @@ function searchBuffer(
       if (match) return i;
     }
   } else {
-    start = Math.max(0, start);
     const limit = buf.length - needle.length;
     for (let i = start; i <= limit; i++) {
       let match = true;
@@ -480,6 +477,18 @@ export class Buffer extends Uint8Array {
 
   get _isBuffer() {
     return true;
+  }
+
+  override get [Symbol.toStringTag](): "Uint8Array" {
+    return "Uint8Array";
+  }
+
+  override at(index: number): number | undefined {
+    return super.at(index);
+  }
+
+  override valueOf(): this {
+    return this;
   }
 
   override subarray(start?: number, end?: number): Buffer {
@@ -844,7 +853,7 @@ export class Buffer extends Uint8Array {
     offset = offset >>> 0;
     byteLength = byteLength >>> 0;
     let val = this.readUIntLE(offset, byteLength);
-    const limit = 1 << (byteLength * 8 - 1);
+    const limit = Math.pow(2, byteLength * 8 - 1);
     if (val >= limit) {
       val -= Math.pow(2, byteLength * 8);
     }
@@ -855,7 +864,7 @@ export class Buffer extends Uint8Array {
     offset = offset >>> 0;
     byteLength = byteLength >>> 0;
     let val = this.readUIntBE(offset, byteLength);
-    const limit = 1 << (byteLength * 8 - 1);
+    const limit = Math.pow(2, byteLength * 8 - 1);
     if (val >= limit) {
       val -= Math.pow(2, byteLength * 8);
     }
