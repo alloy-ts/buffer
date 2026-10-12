@@ -173,6 +173,7 @@ impl Bytes {
 // `Reader` over the underlying `bytes::Bytes` without reaching into the
 // private field.
 impl Bytes {
+  #[allow(dead_code)]
   pub(crate) fn from_inner(inner: InnerBytes) -> Self {
     Self { inner }
   }
