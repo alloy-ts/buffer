@@ -7,6 +7,7 @@ import {
   btoa,
   isAscii,
   isUtf8,
+  resolveObjectURL,
   transcode,
   constants,
   INSPECT_MAX_BYTES,
@@ -273,9 +274,13 @@ test("File class", () => {
   expect(file.text()).toBe("hello world");
 });
 
-test("transcode and constants", () => {
+test("transcode, resolveObjectURL and constants", () => {
   const newBuf = transcode(Buffer.from("€"), "utf8", "ascii");
   expect(newBuf.toString("ascii")).toBe("?");
+
+  expect(() => resolveObjectURL("blob:nodedata:test")).toThrow(
+    "blob: URLs are not supported by this binding",
+  );
 
   expect(constants.MAX_LENGTH).toBe(kMaxLength);
   expect(constants.MAX_STRING_LENGTH).toBe(kStringMaxLength);

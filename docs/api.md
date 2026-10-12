@@ -6,10 +6,11 @@ This document provides a detailed review of our built native artifact and TypeSc
 
 - **Overall Compatibility:** **99.1%** (105 out of 106 specified API items supported)
 - **Buffer Class:** 100% (12 static methods/properties, 67 instance methods)
-- **Blob Class:** 85.7% (6/7 methods; `stream()` relies on Web Streams ReadableStream)
+- **Blob Class:** 85.7% (6/7 methods; `stream()` relies on Web Streams `ReadableStream`)
 - **File Class:** 100%
 - **Standalone Functions:** 100% (6/6 functions)
 - **Constants & Variables:** 100% (5/5 exports)
+- **Bytes Class (NAPI extension):** 100% (NAPI binding for `bytes::Bytes`)
 
 ---
 
