@@ -1,6 +1,6 @@
 # Buffer
 
-High-performance native Node.js `node:buffer` compatible implementation backed by Rust NAPI-RS bindings.
+High-performance native Node.js `node:buffer` compatible implementation backed by Rust `bytes` crate via NAPI-RS bindings.
 
 ## Features
 
