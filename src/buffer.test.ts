@@ -7,6 +7,7 @@ import {
   btoa,
   isAscii,
   isUtf8,
+  resolveObjectURL,
   transcode,
   constants,
   INSPECT_MAX_BYTES,
@@ -251,31 +252,67 @@ test("atob and btoa", () => {
 test("isAscii and isUtf8", () => {
   expect(isAscii(Buffer.from("hello"))).toBe(true);
   expect(isUtf8(Buffer.from("tést"))).toBe(true);
+
+  expect(() => isAscii("invalid" as any)).toThrow(TypeError);
+  expect(() => isUtf8("invalid" as any)).toThrow(TypeError);
 });
 
-test("Blob class", () => {
+test("Blob class async methods and stream", async () => {
   const blob = new Blob(["hello ", "world"], { type: "text/plain" });
   expect(blob.size).toBe(11);
   expect(blob.type).toBe("text/plain");
-  expect(blob.text()).toBe("hello world");
+
+  const text = await blob.text();
+  expect(text).toBe("hello world");
+
+  const bytes = await blob.bytes();
+  expect(bytes).toBeInstanceOf(Uint8Array);
+  expect(Array.from(bytes)).toEqual([104, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100]);
+
+  const ab = await blob.arrayBuffer();
+  expect(ab.byteLength).toBe(11);
+
+  const stream = blob.stream();
+  expect(stream).toBeDefined();
+  const reader = stream.getReader();
+  const { value, done } = await reader.read();
+  expect(done).toBe(false);
+  expect(value).toEqual(bytes);
 
   const sliced = blob.slice(0, 5);
   expect(sliced.size).toBe(5);
-  expect(sliced.text()).toBe("hello");
+  expect(await sliced.text()).toBe("hello");
 });
 
-test("File class", () => {
+test("File class", async () => {
   const file = new File(["hello world"], "hello.txt", { type: "text/plain" });
   expect(file.name).toBe("hello.txt");
   expect(file.size).toBe(11);
   expect(file.type).toBe("text/plain");
   expect(typeof file.lastModified).toBe("number");
-  expect(file.text()).toBe("hello world");
+  expect(await file.text()).toBe("hello world");
+
+  expect(() => new File(["data"], 123 as any)).toThrow(TypeError);
+});
+
+test("resolveObjectURL", () => {
+  const blob = new Blob(["test"]);
+  if (typeof URL !== "undefined" && typeof URL.createObjectURL === "function") {
+    const url = URL.createObjectURL(blob as any);
+    expect(url).toContain("blob:nodedata:");
+    expect(resolveObjectURL(url)).toBe(blob as any);
+
+    URL.revokeObjectURL(url);
+    expect(resolveObjectURL(url)).toBeUndefined();
+  }
+  expect(resolveObjectURL("unknown-url")).toBeUndefined();
 });
 
 test("transcode and constants", () => {
   const newBuf = transcode(Buffer.from("€"), "utf8", "ascii");
   expect(newBuf.toString("ascii")).toBe("?");
+
+  expect(() => transcode(Buffer.from("test"), "utf8", "hex" as any)).toThrow();
 
   expect(constants.MAX_LENGTH).toBe(kMaxLength);
   expect(constants.MAX_STRING_LENGTH).toBe(kStringMaxLength);

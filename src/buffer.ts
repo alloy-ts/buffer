@@ -132,7 +132,9 @@ export class Buffer extends Uint8Array {
       const arr = value as ArrayLike<unknown>;
       const res = new Buffer(arr.length);
       for (let i = 0; i < arr.length; i++) {
-        res[i] = Number(arr[i]) & 255 || 0;
+        let num = Number(arr[i]);
+        if (Number.isNaN(num)) num = 0;
+        res[i] = Math.trunc(num) & 255;
       }
       return res;
     }
@@ -219,7 +221,9 @@ export class Buffer extends Uint8Array {
     const sEnd = sourceEnd ?? this.byteLength;
 
     if (tStart < 0 || sStart < 0 || tEnd > target.byteLength || sEnd > this.byteLength) {
-      throw new RangeError("ERR_OUT_OF_RANGE: Index out of range");
+      const err = new RangeError("ERR_OUT_OF_RANGE: Index out of range");
+      (err as any).code = "ERR_OUT_OF_RANGE";
+      throw err;
     }
 
     const srcSlice = this.subarray(sStart, sEnd);
@@ -653,16 +657,226 @@ export class Buffer extends Uint8Array {
   }
 }
 
-export const Blob = native.Blob;
-export const File = native.File;
+export type BufferEncoding =
+  | "ascii"
+  | "utf8"
+  | "utf-8"
+  | "utf16le"
+  | "utf-16le"
+  | "ucs2"
+  | "ucs-2"
+  | "base64"
+  | "base64url"
+  | "latin1"
+  | "binary"
+  | "hex";
+
+export type TranscodeEncoding =
+  | "ascii"
+  | "utf8"
+  | "utf-8"
+  | "utf16le"
+  | "utf-16le"
+  | "ucs2"
+  | "ucs-2"
+  | "latin1"
+  | "binary";
+
+export type WithImplicitCoercion<T> =
+  | T
+  | { valueOf(): T }
+  | (T extends string ? { [Symbol.toPrimitive](hint: "string"): T } : never);
+
+export type ImplicitArrayBuffer<T extends WithImplicitCoercion<ArrayBufferLike>> = T extends {
+  valueOf(): infer V extends ArrayBufferLike;
+}
+  ? V
+  : T;
+
+export interface BlobOptions {
+  endings?: "transparent" | "native";
+  type?: string;
+}
+
+export interface FileOptions {
+  endings?: "transparent" | "native";
+  type?: string;
+  lastModified?: number;
+}
+
+export class Blob {
+  private _native: any;
+
+  constructor(sources: Array<any> = [], options?: BlobOptions) {
+    let processedSources = sources;
+    if (options?.endings === "native" && Array.isArray(sources)) {
+      const eol = typeof process !== "undefined" && process.platform === "win32" ? "\r\n" : "\n";
+      processedSources = sources.map((src) => {
+        if (typeof src === "string") {
+          return src.replace(/\r\n|\r|\n/g, eol);
+        }
+        return src;
+      });
+    }
+    this._native = new native.Blob(processedSources, options);
+  }
+
+  get size(): number {
+    return this._native.size;
+  }
+
+  get type(): string {
+    return this._native.type;
+  }
+
+  async arrayBuffer(): Promise<ArrayBuffer> {
+    return this._native.arrayBuffer();
+  }
+
+  async bytes(): Promise<Uint8Array> {
+    return new Uint8Array(this._native.bytes());
+  }
+
+  async text(): Promise<string> {
+    return this._native.text();
+  }
+
+  slice(start?: number, end?: number, type?: string): Blob {
+    const res = Object.create(Blob.prototype);
+    res._native = this._native.slice(start, end, type);
+    return res;
+  }
+
+  stream(): ReadableStream<Uint8Array> {
+    const bytes = new Uint8Array(this._native.bytes());
+    return new ReadableStream({
+      start(controller) {
+        controller.enqueue(bytes);
+        controller.close();
+      },
+    });
+  }
+}
+
+export class File extends Blob {
+  readonly name: string;
+  readonly lastModified: number;
+
+  constructor(sources: Array<any>, fileName: string, options?: FileOptions) {
+    if (typeof fileName !== "string") {
+      throw new TypeError("The 'fileName' argument must be of type string.");
+    }
+    super(sources, options);
+    this.name = String(fileName);
+    this.lastModified = options?.lastModified ?? Date.now();
+  }
+}
 export const atob = native.atob;
 export const btoa = native.btoa;
-export const isAscii = native.isAscii;
-export const isUtf8 = native.isUtf8;
-export const resolveObjectURL = native.resolveObjectURL;
+const blobRegistry = new Map<string, Blob>();
+
+export function resolveObjectURL(id: string): Blob | undefined {
+  if (typeof id !== "string") return undefined;
+  return blobRegistry.get(id);
+}
+
+if (typeof URL !== "undefined" && typeof URL.createObjectURL === "function") {
+  const origCreate = (blob: any) => URL.createObjectURL(blob);
+  const origRevoke = (url: string) => URL.revokeObjectURL(url);
+
+  URL.createObjectURL = function (blob: any): string {
+    if (blob instanceof Blob || (blob && typeof blob === "object" && "arrayBuffer" in blob)) {
+      const id = `blob:nodedata:${Math.random().toString(36).slice(2)}`;
+      blobRegistry.set(id, blob);
+      return id;
+    }
+    return origCreate(blob);
+  };
+
+  URL.revokeObjectURL = function (url: string): void {
+    blobRegistry.delete(url);
+    try {
+      origRevoke(url);
+    } catch {
+      // ignore
+    }
+  };
+}
+
+export function isAscii(input: Buffer | ArrayBuffer | ArrayBufferView): boolean {
+  if (input == null || typeof input !== "object") {
+    throw new TypeError(
+      'The "input" argument must be an instance of Buffer, TypedArray, or ArrayBuffer',
+    );
+  }
+  if (
+    input instanceof ArrayBuffer ||
+    (typeof SharedArrayBuffer !== "undefined" && input instanceof SharedArrayBuffer)
+  ) {
+    if ((input as any).detached) {
+      throw new TypeError("ArrayBuffer is detached");
+    }
+  } else if (ArrayBuffer.isView(input)) {
+    if ((input.buffer as any)?.detached) {
+      throw new TypeError("ArrayBuffer is detached");
+    }
+  } else {
+    throw new TypeError(
+      'The "input" argument must be an instance of Buffer, TypedArray, or ArrayBuffer',
+    );
+  }
+  return native.isAscii(input);
+}
+
+export function isUtf8(input: Buffer | ArrayBuffer | ArrayBufferView): boolean {
+  if (input == null || typeof input !== "object") {
+    throw new TypeError(
+      'The "input" argument must be an instance of Buffer, TypedArray, or ArrayBuffer',
+    );
+  }
+  if (
+    input instanceof ArrayBuffer ||
+    (typeof SharedArrayBuffer !== "undefined" && input instanceof SharedArrayBuffer)
+  ) {
+    if ((input as any).detached) {
+      throw new TypeError("ArrayBuffer is detached");
+    }
+  } else if (ArrayBuffer.isView(input)) {
+    if ((input.buffer as any)?.detached) {
+      throw new TypeError("ArrayBuffer is detached");
+    }
+  } else {
+    throw new TypeError(
+      'The "input" argument must be an instance of Buffer, TypedArray, or ArrayBuffer',
+    );
+  }
+  return native.isUtf8(input);
+}
+
+const TRANSCODE_ENCODINGS = new Set([
+  "ascii",
+  "utf8",
+  "utf-8",
+  "utf16le",
+  "utf-16le",
+  "ucs2",
+  "ucs-2",
+  "latin1",
+  "binary",
+]);
 
 export function transcode(source: Uint8Array, fromEncoding: string, toEncoding: string): Buffer {
-  const res = native.transcode(source, fromEncoding, toEncoding);
+  if (!(source instanceof Uint8Array)) {
+    throw new TypeError('The "source" argument must be an instance of Uint8Array');
+  }
+  const fromEnc = String(fromEncoding).toLowerCase();
+  const toEnc = String(toEncoding).toLowerCase();
+  if (!TRANSCODE_ENCODINGS.has(fromEnc) || !TRANSCODE_ENCODINGS.has(toEnc)) {
+    throw new Error(
+      `Invalid or unsupported encoding for transcode: from '${fromEncoding}' to '${toEncoding}'`,
+    );
+  }
+  const res = native.transcode(source, fromEnc, toEnc);
   return Buffer.from(res.buffer, res.byteOffset, res.byteLength);
 }
 
