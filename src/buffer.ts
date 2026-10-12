@@ -310,18 +310,11 @@ export class Buffer extends Uint8Array {
   }
 
   toBase64(options?: { alphabet?: "base64" | "base64url"; omitPadding?: boolean }): string {
-    let b64 = this.toString("base64");
-    if (options?.alphabet === "base64url") {
-      b64 = b64.replace(/\+/g, "-").replace(/\//g, "_");
-    }
-    if (options?.omitPadding) {
-      b64 = b64.replace(/=+$/, "");
-    }
-    return b64;
+    return native.bufToBase64(this, options);
   }
 
   toHex(): string {
-    return this.toString("hex");
+    return native.bufToHex(this);
   }
 
   setFromBase64(base64: string, offset = 0): { read: number; written: number } {
@@ -331,17 +324,8 @@ export class Buffer extends Uint8Array {
     if (offset < 0 || offset > this.length) {
       throw new RangeError("ERR_OUT_OF_RANGE: Index out of range");
     }
-    const cleanB64 = base64.replace(/-/g, "+").replace(/_/g, "/");
-    const decoded = Buffer.from(cleanB64, "base64");
-    const available = this.length - offset;
-    const bytesToWrite = Math.min(decoded.length, available);
-    this.set(decoded.subarray(0, bytesToWrite), offset);
-
-    let read = base64.length;
-    if (bytesToWrite < decoded.length) {
-      read = Math.floor((bytesToWrite * 4) / 3);
-    }
-    return { read, written: bytesToWrite };
+    const res = native.bufSetFromBase64(this, base64, offset);
+    return { read: res.read, written: res.written };
   }
 
   setFromHex(hex: string): { read: number; written: number } {
@@ -351,10 +335,8 @@ export class Buffer extends Uint8Array {
     if (hex.length % 2 !== 0 || /[^0-9a-fA-F]/.test(hex)) {
       throw new SyntaxError("Invalid hex string");
     }
-    const decoded = Buffer.from(hex, "hex");
-    const bytesToWrite = Math.min(decoded.length, this.length);
-    this.set(decoded.subarray(0, bytesToWrite), 0);
-    return { read: bytesToWrite * 2, written: bytesToWrite };
+    const res = native.bufSetFromHex(this, hex);
+    return { read: res.read, written: res.written };
   }
 
   swap32(): this {

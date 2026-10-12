@@ -196,8 +196,20 @@ export declare function bufIsEncoding(encoding: string): boolean
 /** `buf.lastIndexOf(value[, byteOffset[, end]][, encoding])`. */
 export declare function bufLastIndexOf(buf: Buffer, value: unknown, byteOffset?: number | undefined | null, end?: number | undefined | null, encoding?: string | undefined | null): number
 
+/** `buf.setFromBase64(base64[, offset])`. */
+export declare function bufSetFromBase64(buf: Buffer, base64: string, offset?: number | undefined | null): SetFromBase64Result
+
+/** `buf.setFromHex(hex)`. */
+export declare function bufSetFromHex(buf: Buffer, hex: string): SetFromHexResult
+
 /** `Buffer.stringLength(input[, encoding])`. */
 export declare function bufStringLength(input: unknown, encoding?: string | undefined | null): number
+
+/** `buf.toBase64([options])`. */
+export declare function bufToBase64(buf: Buffer, options?: ToBase64Options | undefined | null): string
+
+/** `buf.toHex()`. */
+export declare function bufToHex(buf: Buffer): string
 
 /** `buf.write(string[, offset[, length]][, encoding])`. */
 export declare function bufWrite(buf: Buffer, string: string, offset?: number | undefined | null, length?: number | undefined | null, encoding?: string | undefined | null): number
@@ -222,6 +234,21 @@ export declare function isUtf8(input: unknown): boolean
 
 /** Resolves a `blob:nodedata:` URL into a Blob. Not supported in this binding. */
 export declare function resolveObjectURL(id: string): Blob
+
+export interface SetFromBase64Result {
+  read: number
+  written: number
+}
+
+export interface SetFromHexResult {
+  read: number
+  written: number
+}
+
+export interface ToBase64Options {
+  alphabet?: string
+  omitPadding?: boolean
+}
 
 /** Re-encodes `source` from `from_encoding` to `to_encoding`. */
 export declare function transcode(source: unknown, fromEncoding: string, toEncoding: string): Buffer

@@ -658,6 +658,86 @@ pub fn buf_includes(
   Ok(buf_index_of(env, buf, value, byte_offset, end, encoding)? >= 0)
 }
 
+// --- base64 / hex helper methods ------------------------------------------
+
+#[napi(object)]
+pub struct ToBase64Options {
+  pub alphabet: Option<String>,
+  pub omit_padding: Option<bool>,
+}
+
+/// `buf.toBase64([options])`.
+#[napi(js_name = "bufToBase64")]
+pub fn buf_to_base64(buf: Buffer, options: Option<ToBase64Options>) -> String {
+  let bytes = buf.as_ref();
+  let alphabet = options.as_ref().and_then(|o| o.alphabet.as_deref()).unwrap_or("base64");
+  let omit_padding = options.as_ref().and_then(|o| o.omit_padding).unwrap_or(false);
+  let is_url = alphabet.eq_ignore_ascii_case("base64url");
+  let mut res = encode_base64(bytes, is_url);
+  if omit_padding {
+    while res.ends_with('=') {
+      res.pop();
+    }
+  }
+  res
+}
+
+/// `buf.toHex()`.
+#[napi(js_name = "bufToHex")]
+pub fn buf_to_hex(buf: Buffer) -> String {
+  encode_hex(buf.as_ref())
+}
+
+#[napi(object)]
+pub struct SetFromBase64Result {
+  pub read: u32,
+  pub written: u32,
+}
+
+/// `buf.setFromBase64(base64[, offset])`.
+#[napi(js_name = "bufSetFromBase64")]
+pub fn buf_set_from_base64(
+  mut buf: Buffer,
+  base64: String,
+  offset: Option<u32>,
+) -> Result<SetFromBase64Result> {
+  let data = buf.as_mut();
+  let off = (offset.unwrap_or(0) as usize).min(data.len());
+  let clean_b64 = base64.replace('-', "+").replace('_', "/");
+  let decoded = decode_base64(&clean_b64, false)?;
+  let available = data.len() - off;
+  let bytes_to_write = decoded.len().min(available);
+  data[off..off + bytes_to_write].copy_from_slice(&decoded[..bytes_to_write]);
+
+  let mut read = base64.len();
+  if bytes_to_write < decoded.len() {
+    read = (bytes_to_write * 4) / 3;
+  }
+  Ok(SetFromBase64Result {
+    read: read as u32,
+    written: bytes_to_write as u32,
+  })
+}
+
+#[napi(object)]
+pub struct SetFromHexResult {
+  pub read: u32,
+  pub written: u32,
+}
+
+/// `buf.setFromHex(hex)`.
+#[napi(js_name = "bufSetFromHex")]
+pub fn buf_set_from_hex(mut buf: Buffer, hex: String) -> Result<SetFromHexResult> {
+  let data = buf.as_mut();
+  let decoded = decode_hex(&hex)?;
+  let bytes_to_write = decoded.len().min(data.len());
+  data[..bytes_to_write].copy_from_slice(&decoded[..bytes_to_write]);
+  Ok(SetFromHexResult {
+    read: (bytes_to_write * 2) as u32,
+    written: bytes_to_write as u32,
+  })
+}
+
 // ===========================================================================
 // Blob / File
 // ===========================================================================
