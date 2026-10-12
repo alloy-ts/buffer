@@ -73,7 +73,7 @@ export class Buffer extends Uint8Array {
     return native.bufByteLength(string, encoding);
   }
 
-  static compare(buf1: Uint8Array, buf2: Uint8Array): -1 | 0 | 1 {
+  static compare(buf1: Uint8Array<ArrayBufferLike>, buf2: Uint8Array<ArrayBufferLike>): -1 | 0 | 1 {
     if (!(buf1 instanceof Uint8Array) || !(buf2 instanceof Uint8Array)) {
       throw new TypeError('The "buf1" and "buf2" arguments must be an instance of Uint8Array');
     }
@@ -81,7 +81,7 @@ export class Buffer extends Uint8Array {
     return (res < 0 ? -1 : res > 0 ? 1 : 0) as -1 | 0 | 1;
   }
 
-  static concat(list: readonly Uint8Array[], totalLength?: number): Buffer {
+  static concat(list: readonly Uint8Array<ArrayBufferLike>[], totalLength?: number): Buffer {
     if (!Array.isArray(list)) {
       throw new TypeError('The "list" argument must be an instance of Array');
     }
@@ -199,15 +199,15 @@ export class Buffer extends Uint8Array {
     };
   }
 
-  equals(otherBuffer: Uint8Array): boolean {
+  equals(otherBuffer: Uint8Array<ArrayBufferLike>): boolean {
     if (!(otherBuffer instanceof Uint8Array)) {
       throw new TypeError("Argument must be a Uint8Array or Buffer");
     }
-    return Buffer.compare(this, otherBuffer) === 0;
+    return Buffer.compare(this as unknown as Uint8Array, otherBuffer) === 0;
   }
 
   compare(
-    target: Uint8Array,
+    target: Uint8Array<ArrayBufferLike>,
     targetStart?: number,
     targetEnd?: number,
     sourceStart?: number,
@@ -227,10 +227,15 @@ export class Buffer extends Uint8Array {
 
     const srcSlice = this.subarray(sStart, sEnd);
     const tgtSlice = target.subarray(tStart, tEnd);
-    return Buffer.compare(srcSlice, tgtSlice);
+    return Buffer.compare(srcSlice as unknown as Uint8Array, tgtSlice);
   }
 
-  copy(target: Uint8Array, targetStart?: number, sourceStart?: number, sourceEnd?: number): number {
+  copy(
+    target: Uint8Array<ArrayBufferLike>,
+    targetStart?: number,
+    sourceStart?: number,
+    sourceEnd?: number,
+  ): number {
     if (!(target instanceof Uint8Array)) {
       throw new TypeError("Argument must be a Uint8Array or Buffer");
     }
@@ -282,11 +287,11 @@ export class Buffer extends Uint8Array {
     return native.bufIncludes(this, value, byteOffset, undefined, encoding);
   }
 
-  override slice(start?: number, end?: number): Buffer {
+  override slice(start?: number, end?: number): any {
     return this.subarray(start, end);
   }
 
-  override subarray(start?: number, end?: number): Buffer {
+  override subarray(start?: number, end?: number): any {
     const sub = super.subarray(start, end);
     return Buffer.from(sub.buffer, sub.byteOffset, sub.byteLength);
   }
@@ -294,6 +299,111 @@ export class Buffer extends Uint8Array {
   override reverse(): this {
     super.reverse();
     return this;
+  }
+
+  override toBase64(options?: any): string {
+    const enc = options?.alphabet === "base64url" ? "base64url" : "base64";
+    let str = this.toString(enc);
+    if (options?.omitPadding) {
+      str = str.replace(/=+$/, "");
+    }
+    return str;
+  }
+
+  override toHex(): string {
+    return this.toString("hex");
+  }
+
+  override setFromBase64(base64: string, optionsOrOffset?: any): { read: number; written: number } {
+    const offset = typeof optionsOrOffset === "number" ? optionsOrOffset : optionsOrOffset?.offset;
+    const off = offset ?? 0;
+    if (typeof off !== "number" || Number.isNaN(off) || off < 0 || off > this.length) {
+      throw new RangeError('The value of "offset" is out of range.');
+    }
+    const targetSpace = this.length - off;
+    let written = 0;
+    let read = 0;
+
+    const b64Map = (c: string) => {
+      const code = c.charCodeAt(0);
+      if (code >= 65 && code <= 90) return code - 65;
+      if (code >= 97 && code <= 122) return code - 71;
+      if (code >= 48 && code <= 57) return code + 4;
+      if (c === "+" || c === "-") return 62;
+      if (c === "/" || c === "_") return 63;
+      if (c === "=") return -2;
+      return -1;
+    };
+
+    let chunk: number[] = [];
+
+    for (let i = 0; i < base64.length; i++) {
+      const ch = base64[i]!;
+      if (ch === " " || ch === "\t" || ch === "\n" || ch === "\r" || ch === "\f") {
+        if (written === targetSpace) break;
+        read = i + 1;
+        continue;
+      }
+      const val = b64Map(ch);
+      if (val === -1) break;
+
+      chunk.push(val);
+
+      if (chunk.length === 4) {
+        const v0 = chunk[0]!;
+        const v1 = chunk[1]!;
+        const v2 = chunk[2]!;
+        const v3 = chunk[3]!;
+
+        const b0 = (v0 << 2) | (v1 >> 4);
+        if (written < targetSpace) {
+          this[off + written++] = b0;
+        } else {
+          break;
+        }
+
+        if (v2 !== -2) {
+          const b1 = ((v1 & 15) << 4) | (v2 >> 2);
+          if (written < targetSpace) {
+            this[off + written++] = b1;
+          } else {
+            read = i + 1;
+            break;
+          }
+        }
+
+        if (v3 !== -2 && v2 !== -2) {
+          const b2 = ((v2 & 3) << 6) | v3;
+          if (written < targetSpace) {
+            this[off + written++] = b2;
+          } else {
+            read = i + 1;
+            break;
+          }
+        }
+
+        read = i + 1;
+        chunk = [];
+      }
+    }
+
+    return { read, written };
+  }
+
+  override setFromHex(hex: string, optionsOrOffset?: any): { read: number; written: number } {
+    if (typeof hex !== "string" || hex.length % 2 !== 0 || /[^0-9a-fA-F]/.test(hex)) {
+      throw new SyntaxError("Invalid hex string");
+    }
+    const offset = typeof optionsOrOffset === "number" ? optionsOrOffset : optionsOrOffset?.offset;
+    const off = offset ?? 0;
+    if (typeof off !== "number" || Number.isNaN(off) || off < 0 || off > this.length) {
+      throw new RangeError('The value of "offset" is out of range.');
+    }
+    const maxBytes = Math.min(hex.length / 2, this.length - off);
+    for (let i = 0; i < maxBytes; i++) {
+      this[off + i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);
+    }
+    return { read: maxBytes * 2, written: maxBytes };
   }
 
   swap16(): this {
@@ -665,7 +775,11 @@ export const isUtf8 = native.isUtf8;
 export const isLatin1 = native.isLatin1;
 export const resolveObjectURL = native.resolveObjectURL;
 
-export function transcode(source: Uint8Array, fromEncoding: string, toEncoding: string): Buffer {
+export function transcode(
+  source: Uint8Array<ArrayBufferLike>,
+  fromEncoding: string,
+  toEncoding: string,
+): Buffer {
   const res = native.transcode(source, fromEncoding, toEncoding);
   return Buffer.from(res.buffer, res.byteOffset, res.byteLength);
 }
