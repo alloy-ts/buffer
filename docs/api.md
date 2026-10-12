@@ -2,6 +2,8 @@
 
 This document provides a detailed review of our built native artifact (`dist/index.js`) and TypeScript library against the standard Node.js `node:buffer` API specification.
 
+For runnable code examples and usage guides, see [docs/examples.md](examples.md) and the [`examples/`](../examples/) directory.
+
 ## Compatibility Summary
 
 - **Overall Compatibility:** **99.1%** (105 out of 106 specified API items supported)

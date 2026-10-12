@@ -81,7 +81,7 @@ test("Buffer.from ArrayBuffer, TypedArray, DataView, Object", () => {
   const objVal = { valueOf: () => [1, 2, 3] };
   expect(Array.from(Buffer.from(objVal as any))).toEqual([1, 2, 3]);
 
-  const objPrim = { [Symbol.toPrimitive]: (hint: string) => "hello" };
+  const objPrim = { [Symbol.toPrimitive]: (_hint: string) => "hello" };
   expect(Buffer.from(objPrim as any).toString()).toBe("hello");
 
   expect(() => Buffer.from(123 as any)).toThrow();
