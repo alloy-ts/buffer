@@ -88,7 +88,7 @@ test("Buffer.concat", () => {
   const totalLength = buf1.length + buf2.length + buf3.length;
   expect(totalLength).toBe(42);
 
-  const bufA = Buffer.concat([buf1, buf2, buf3], totalLength);
+  const bufA = Buffer.concat([buf1, buf2, buf3] as any[], totalLength);
   expect(bufA.length).toBe(42);
   expect(Buffer.isBuffer(bufA)).toBe(true);
 });
@@ -98,16 +98,16 @@ test("Buffer.compare and buf.equals", () => {
   const buf2 = Buffer.from("414243", "hex");
   const buf3 = Buffer.from("ABCD");
 
-  expect(buf1.equals(buf2)).toBe(true);
-  expect(buf1.equals(buf3)).toBe(false);
+  expect(buf1.equals(buf2 as any)).toBe(true);
+  expect(buf1.equals(buf3 as any)).toBe(false);
 
-  expect(buf1.compare(buf1)).toBe(0);
-  expect(buf1.compare(buf2)).toBe(0);
-  expect(buf1.compare(buf3)).toBe(-1);
-  expect(buf3.compare(buf1)).toBe(1);
+  expect(buf1.compare(buf1 as any)).toBe(0);
+  expect(buf1.compare(buf2 as any)).toBe(0);
+  expect(buf1.compare(buf3 as any)).toBe(-1);
+  expect(buf3.compare(buf1 as any)).toBe(1);
 
   const arr = [buf3, buf1];
-  arr.sort((a, b) => Buffer.compare(a, b));
+  arr.sort((a, b) => Buffer.compare(a as any, b as any));
   expect(arr[0]!.toString()).toBe("ABC");
   expect(arr[1]!.toString()).toBe("ABCD");
 });
@@ -144,7 +144,7 @@ test("buf.copy", () => {
     buf1[i] = i + 97;
   }
 
-  buf1.copy(buf2, 8, 16, 20);
+  buf1.copy(buf2 as any, 8, 16, 20);
   expect(buf2.toString("ascii", 0, 25)).toBe("!!!!!!!!qrst!!!!!!!!!!!!!");
 });
 
@@ -274,7 +274,7 @@ test("File class", () => {
 });
 
 test("transcode and constants", () => {
-  const newBuf = transcode(Buffer.from("€"), "utf8", "ascii");
+  const newBuf = transcode(Buffer.from("€") as any, "utf8", "ascii");
   expect(newBuf.toString("ascii")).toBe("?");
 
   expect(constants.MAX_LENGTH).toBe(kMaxLength);

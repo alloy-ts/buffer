@@ -74,7 +74,7 @@ export class Buffer extends Uint8Array {
     if (!(buf1 instanceof Uint8Array) || !(buf2 instanceof Uint8Array)) {
       throw new TypeError('The "buf1" and "buf2" arguments must be an instance of Uint8Array');
     }
-    const res = native.bufCompare(buf1, buf2);
+    const res = native.bufCompare(buf1 as any, buf2 as any);
     return (res < 0 ? -1 : res > 0 ? 1 : 0) as -1 | 0 | 1;
   }
 
@@ -92,7 +92,7 @@ export class Buffer extends Uint8Array {
       }
     }
     const bufs = list.map((item) => (item instanceof Uint8Array ? item : new Uint8Array(item)));
-    const res = native.bufConcat(bufs, totalLength);
+    const res = native.bufConcat(bufs as any, totalLength);
     return Buffer.from(res.buffer, res.byteOffset, res.byteLength);
   }
 
@@ -162,7 +162,7 @@ export class Buffer extends Uint8Array {
   }
 
   override toString(encoding?: string, start?: number, end?: number): string {
-    return native.bufEncode(this, encoding, start, end);
+    return native.bufEncode(this as any, encoding, start, end);
   }
 
   write(
@@ -186,7 +186,7 @@ export class Buffer extends Uint8Array {
       }
     }
 
-    return native.bufWrite(this, string, offset, length, enc);
+    return native.bufWrite(this as any, string, offset, length, enc);
   }
 
   toJSON(): { type: "Buffer"; data: number[] } {
@@ -196,11 +196,41 @@ export class Buffer extends Uint8Array {
     };
   }
 
+  override toBase64(options?: {
+    alphabet?: "base64" | "base64url";
+    omitPadding?: boolean;
+  }): string {
+    const enc = options?.alphabet === "base64url" ? "base64url" : "base64";
+    let str = this.toString(enc);
+    if (options?.omitPadding) {
+      str = str.replace(/=+$/, "");
+    }
+    return str;
+  }
+
+  override toHex(): string {
+    return this.toString("hex");
+  }
+
+  override setFromBase64(base64: string, options?: any): any {
+    const offset = typeof options === "number" ? options : (options?.offset ?? 0);
+    const decoded = Buffer.from(base64, "base64");
+    const written = this.copy(decoded as any, offset);
+    return { read: base64.length, written };
+  }
+
+  override setFromHex(hex: string, options?: any): any {
+    const offset = typeof options === "number" ? options : (options?.offset ?? 0);
+    const decoded = Buffer.from(hex, "hex");
+    const written = this.copy(decoded as any, offset);
+    return { read: hex.length, written };
+  }
+
   equals(otherBuffer: Uint8Array): boolean {
     if (!(otherBuffer instanceof Uint8Array)) {
       throw new TypeError("Argument must be a Uint8Array or Buffer");
     }
-    return Buffer.compare(this, otherBuffer) === 0;
+    return Buffer.compare(this as any, otherBuffer as any) === 0;
   }
 
   compare(
@@ -224,7 +254,7 @@ export class Buffer extends Uint8Array {
 
     const srcSlice = this.subarray(sStart, sEnd);
     const tgtSlice = target.subarray(tStart, tEnd);
-    return Buffer.compare(srcSlice, tgtSlice);
+    return Buffer.compare(srcSlice as any, tgtSlice as any);
   }
 
   copy(target: Uint8Array, targetStart?: number, sourceStart?: number, sourceEnd?: number): number {
@@ -251,7 +281,7 @@ export class Buffer extends Uint8Array {
     end?: number,
     encoding?: string,
   ): this {
-    native.bufFill(this, value, offset, end, encoding);
+    native.bufFill(this as any, value, offset, end, encoding);
     return this;
   }
 
@@ -260,7 +290,7 @@ export class Buffer extends Uint8Array {
     byteOffset?: number,
     encoding?: string,
   ): number {
-    return native.bufIndexOf(this, value, byteOffset, undefined, encoding);
+    return native.bufIndexOf(this as any, value, byteOffset, undefined, encoding);
   }
 
   override lastIndexOf(
@@ -268,7 +298,7 @@ export class Buffer extends Uint8Array {
     byteOffset?: number,
     encoding?: string,
   ): number {
-    return native.bufLastIndexOf(this, value, byteOffset, undefined, encoding);
+    return native.bufLastIndexOf(this as any, value, byteOffset, undefined, encoding);
   }
 
   override includes(
@@ -276,14 +306,14 @@ export class Buffer extends Uint8Array {
     byteOffset?: number,
     encoding?: string,
   ): boolean {
-    return native.bufIncludes(this, value, byteOffset, undefined, encoding);
+    return native.bufIncludes(this as any, value, byteOffset, undefined, encoding);
   }
 
-  override slice(start?: number, end?: number): Buffer {
+  override slice(start?: number, end?: number): any {
     return this.subarray(start, end);
   }
 
-  override subarray(start?: number, end?: number): Buffer {
+  override subarray(start?: number, end?: number): any {
     const sub = super.subarray(start, end);
     return Buffer.from(sub.buffer, sub.byteOffset, sub.byteLength);
   }
@@ -662,7 +692,7 @@ export const isUtf8 = native.isUtf8;
 export const resolveObjectURL = native.resolveObjectURL;
 
 export function transcode(source: Uint8Array, fromEncoding: string, toEncoding: string): Buffer {
-  const res = native.transcode(source, fromEncoding, toEncoding);
+  const res = native.transcode(source as any, fromEncoding, toEncoding);
   return Buffer.from(res.buffer, res.byteOffset, res.byteLength);
 }
 
