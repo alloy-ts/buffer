@@ -716,7 +716,7 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { Blob, Bytes, File, add, atob, btoa, bufByteLength, bufCompare, bufConcat, bufCopyBytesFrom, bufDecode, bufEncode, bufFill, bufIncludes, bufIndexOf, bufIsEncoding, bufLastIndexOf, bufStringLength, bufWrite, isAscii, isLatin1, isUtf8, resolveObjectURL, transcode } = nativeBinding
+const { Blob, Bytes, File, add, atob, btoa, bufByteLength, bufCompare, bufConcat, bufCopyBytesFrom, bufDecode, bufEncode, bufFill, bufIncludes, bufIndexOf, bufIsEncoding, bufLastIndexOf, bufSetFromBase64, bufSetFromHex, bufStringLength, bufToBase64, bufToHex, bufWrite, isAscii, isLatin1, isUtf8, resolveObjectURL, transcode } = nativeBinding
 export { Blob }
 export { Bytes }
 export { File }
@@ -734,7 +734,11 @@ export { bufIncludes }
 export { bufIndexOf }
 export { bufIsEncoding }
 export { bufLastIndexOf }
+export { bufSetFromBase64 }
+export { bufSetFromHex }
 export { bufStringLength }
+export { bufToBase64 }
+export { bufToHex }
 export { bufWrite }
 export { isAscii }
 export { isLatin1 }

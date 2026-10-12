@@ -415,6 +415,78 @@ pub fn buf_encode(
   bytes_to_str(&data[s..e], &enc)
 }
 
+#[napi(object)]
+pub struct SetResult {
+  pub read: u32,
+  pub written: u32,
+}
+
+/// Encodes `buf` as a Base64 string.
+#[napi(js_name = "bufToBase64")]
+pub fn buf_to_base64(
+  buf: Buffer,
+  alphabet: Option<String>,
+  omit_padding: Option<bool>,
+) -> Result<String> {
+  let data = buf.as_ref();
+  let url = alphabet.as_deref() == Some("base64url");
+  let mut s = encode_base64(data, url);
+  if omit_padding.unwrap_or(false) {
+    s = s.trim_end_matches('=').to_string();
+  }
+  Ok(s)
+}
+
+/// Encodes `buf` as a Hex string.
+#[napi(js_name = "bufToHex")]
+pub fn buf_to_hex(buf: Buffer) -> String {
+  encode_hex(buf.as_ref())
+}
+
+/// Decodes Base64 string into `buf` starting at `offset`.
+#[napi(js_name = "bufSetFromBase64")]
+pub fn buf_set_from_base64(
+  _env: Env,
+  mut buf: Buffer,
+  base64: String,
+  offset: Option<u32>,
+) -> Result<SetResult> {
+  let bytes = decode_base64(&base64, false)?;
+  let data = buf.as_mut();
+  let o = (offset.unwrap_or(0) as usize).min(data.len());
+  let max = data.len() - o;
+  let n = bytes.len().min(max);
+  if n > 0 {
+    data[o..o + n].copy_from_slice(&bytes[..n]);
+  }
+  Ok(SetResult {
+    read: base64.len() as u32,
+    written: n as u32,
+  })
+}
+
+/// Decodes Hex string into `buf` starting at `offset`.
+#[napi(js_name = "bufSetFromHex")]
+pub fn buf_set_from_hex(
+  _env: Env,
+  mut buf: Buffer,
+  hex: String,
+  offset: Option<u32>,
+) -> Result<SetResult> {
+  let bytes = decode_hex(&hex)?;
+  let data = buf.as_mut();
+  let o = (offset.unwrap_or(0) as usize).min(data.len());
+  let max = data.len() - o;
+  let n = bytes.len().min(max);
+  if n > 0 {
+    data[o..o + n].copy_from_slice(&bytes[..n]);
+  }
+  Ok(SetResult {
+    read: hex.len() as u32,
+    written: n as u32,
+  })
+}
+
 /// `Buffer.concat(list[, totalLength])`.
 #[napi(js_name = "bufConcat")]
 pub fn buf_concat(list: Vec<Buffer>, total_length: Option<u32>) -> Buffer {
