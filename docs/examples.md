@@ -1,10 +1,13 @@
 # Code Examples & Demos
 
-This guide provides practical examples demonstrating how to use `@alloy-ts/buffer` for binary data manipulation, file handling, character encoding conversion, and high-performance Rust buffer handles.
+This guide provides practical examples demonstrating how to use `@alloy-ts/buffer` for binary data manipulation, file handling, character encoding conversion, interop with TypedArrays, and high-performance Rust buffer handles.
 
 Executable example scripts are available in the [`examples/`](../examples/) directory:
 
 - [`examples/buffer.ts`](../examples/buffer.ts)
+- [`examples/binary-io.ts`](../examples/binary-io.ts)
+- [`examples/encodings.ts`](../examples/encodings.ts)
+- [`examples/interop.ts`](../examples/interop.ts)
 - [`examples/blob.ts`](../examples/blob.ts)
 - [`examples/file.ts`](../examples/file.ts)
 - [`examples/bytes.ts`](../examples/bytes.ts)
@@ -13,11 +16,13 @@ Running examples:
 
 ```bash
 npx tsx examples/buffer.ts
+npx tsx examples/binary-io.ts
+npx tsx examples/encodings.ts
 ```
 
 ---
 
-## 1. `Buffer` Usage
+## 1. Basic `Buffer` Usage
 
 The `Buffer` class is a subclass of JavaScript's `Uint8Array` that extends it with Node.js-compatible binary methods and encodings.
 
@@ -44,110 +49,113 @@ const buf6 = Buffer.from("tést");
 
 // Creates a Buffer from string using Latin-1 encoding
 const buf7 = Buffer.from("tést", "latin1");
-
-// Decodes Buffer contents into string using various encodings
-console.log(buf6.toString("utf8")); // "tést"
-console.log(buf7.toString("latin1")); // "tést"
-
-// Decodes hex and base64 strings
-const hexBuf = Buffer.from("74c3a97374", "hex");
-console.log(hexBuf.toString("utf8")); // "tést"
-
-const b64Buf = Buffer.from("dOlzdA==", "base64");
-console.log(b64Buf.toString("latin1")); // "tést"
-```
-
-### Subarrays & Memory Sharing
-
-`Buffer.prototype.subarray()` and `Buffer.prototype.slice()` return views over the same underlying `ArrayBuffer` memory:
-
-```ts
-const alphabet = Buffer.allocUnsafe(26);
-for (let i = 0; i < 26; i++) {
-  alphabet[i] = i + 97; // 'a' through 'z'
-}
-
-const sub = alphabet.subarray(0, 3);
-console.log(sub.toString("ascii")); // "abc"
-
-alphabet[0] = 33; // ASCII '!'
-console.log(sub.toString("ascii")); // "!bc"
-```
-
-### Numeric Reads & Writes
-
-Read and write multi-byte integers, floats, doubles, and BigInts in big-endian or little-endian byte orders:
-
-```ts
-const numBuf = Buffer.alloc(16);
-numBuf.writeInt8(-42, 0);
-numBuf.writeUInt16LE(0xdead, 2);
-numBuf.writeUInt32BE(0xfeedface, 4);
-numBuf.writeBigInt64LE(0x0102030405060708n, 8);
-
-console.log(numBuf.readInt8(0)); // -42
-console.log(numBuf.readUInt16LE(2).toString(16)); // "dead"
-console.log(numBuf.readUInt32BE(4).toString(16)); // "feedface"
-console.log(numBuf.readBigInt64LE(8)); // 72623859790382856n
 ```
 
 ---
 
-## 2. `Blob` Usage
+## 2. Encodings & String Conversions ([`examples/encodings.ts`](../examples/encodings.ts))
 
-`Blob` encapsulates immutable raw data across multiple thread workers and streams:
+Supported encodings: `utf8`, `ascii`, `latin1`/`binary`, `hex`, `base64`, `base64url`, and `utf16le`/`ucs2`.
 
 ```ts
-import { Blob } from "@alloy-ts/buffer";
+import { Buffer } from "@alloy-ts/buffer";
 
-// Construct a Blob from string, Uint8Array, Buffer, or ArrayBuffer parts
-const parts = [
-  "Hello ",
-  "world!",
-  new Uint8Array([32, 102, 114, 111, 109, 32, 66, 108, 108, 111, 98]),
-];
-const blob = new Blob(parts, { type: "text/plain" });
+// Base64 & Base64URL
+const b64 = Buffer.from("hello world").toString("base64"); // "aGVsbG8gd29ybGQ="
+const b64url = Buffer.from("hello world").toString("base64url"); // "aGVsbG8gd29ybGQ"
 
-console.log(blob.size); // 22 bytes
-console.log(blob.type); // "text/plain"
-console.log(blob.text()); // "Hello world! from Blob"
+// Hex
+const hex = Buffer.from("ABC").toString("hex"); // "414243"
 
-// Read byte representations
-const bytes = blob.bytes(); // Uint8Array/Buffer
-const ab = blob.arrayBuffer(); // Promise/ArrayBuffer
+// Latin1 / Binary (1:1 byte-to-char)
+const latin1 = Buffer.from("café", "latin1");
 
-// Slice a Blob
-const sliced = blob.slice(0, 5, "text/plain");
-console.log(sliced.text()); // "Hello"
+// UTF-16LE / UCS2
+const u16 = Buffer.from("Hi☺", "utf16le");
+
+// Buffer.write with explicit offset, length, and encoding
+const buf = Buffer.alloc(12);
+buf.write("ABCDEFG", 0, 3, "utf8"); // Writes 3 bytes ("ABC")
 ```
 
 ---
 
-## 3. `File` Usage
+## 3. Numeric & Binary I/O ([`examples/binary-io.ts`](../examples/binary-io.ts))
 
-`File` extends `Blob` to represent file system metadata including file name and last modified date:
+Read and write multi-byte integers, IEEE-754 floats/doubles, BigInts, and variable byte length (1–6 bytes) integers:
 
 ```ts
-import { File } from "@alloy-ts/buffer";
+import { Buffer } from "@alloy-ts/buffer";
 
-const file = new File(["Hello ", "file content"], "example.txt", {
+const b = Buffer.alloc(8);
+b.writeInt8(-1, 0);
+b.writeUInt16LE(0x1234, 1);
+b.writeInt32BE(-123456, 3);
+
+// 64-bit BigInt
+const big = Buffer.alloc(8);
+big.writeBigUInt64LE(18446744073709551615n, 0);
+big.writeBigInt64BE(-9007199254740991n, 0);
+
+// IEEE-754 floats / doubles
+const f = Buffer.alloc(8);
+f.writeFloatLE(1.5, 0);
+f.writeDoubleBE(Math.PI, 0);
+
+// Variable length integers (1..6 bytes)
+const v = Buffer.alloc(6);
+v.writeUIntLE(0x123456, 0, 3);
+v.writeIntLE(-1000, 0, 2);
+
+// Byte swapping
+const sw = Buffer.from([0x01, 0x02, 0x03, 0x04]);
+sw.swap32(); // [4, 3, 2, 1]
+```
+
+---
+
+## 4. TypedArray & Memory Interop ([`examples/interop.ts`](../examples/interop.ts))
+
+```ts
+import { Buffer } from "@alloy-ts/buffer";
+
+// Buffer is a Uint8Array
+const buf = Buffer.from([1, 2, 3]);
+console.log(buf instanceof Uint8Array); // true
+
+// Share memory with ArrayBuffer
+const ab = new ArrayBuffer(4);
+const shared = Buffer.from(ab);
+shared[0] = 42;
+
+// copyBytesFrom: copy raw backing bytes of wider views
+const f64 = new Float64Array([1.0, 2.0]);
+const fromF64 = Buffer.copyBytesFrom(f64); // 16 bytes
+```
+
+---
+
+## 5. `Blob` & `File` Usage ([`examples/blob.ts`](../examples/blob.ts), [`examples/file.ts`](../examples/file.ts))
+
+```ts
+import { Blob, File } from "@alloy-ts/buffer";
+
+// Blob
+const blob = new Blob(["Hello ", "world!"], { type: "text/plain" });
+console.log(blob.size); // 12
+console.log(blob.text()); // "Hello world!"
+
+// File
+const file = new File(["file content"], "example.txt", {
   type: "text/plain",
   lastModified: Date.now(),
 });
-
 console.log(file.name); // "example.txt"
-console.log(file.size); // 18
-console.log(file.type); // "text/plain"
-console.log(new Date(file.lastModified).toISOString());
-
-console.log(file.text()); // "Hello file content"
 ```
 
 ---
 
-## 4. `Bytes` (Rust NAPI Handle) Usage
-
-`Bytes` is an efficient Rust memory slice handle exposed via NAPI bindings:
+## 6. `Bytes` (Rust NAPI Handle) Usage ([`examples/bytes.ts`](../examples/bytes.ts))
 
 ```ts
 import { Bytes, Buffer } from "@alloy-ts/buffer";
@@ -155,14 +163,10 @@ import { Bytes, Buffer } from "@alloy-ts/buffer";
 const buf = Buffer.from("Hello from Bytes!");
 const bytes = Bytes.fromBuffer(buf);
 
-console.log(bytes.len()); // 17
-console.log(bytes.isEmpty()); // false
-
 // Cheap O(1) slice sharing memory reference
 const subBytes = bytes.slice(0, 5);
-console.log(subBytes.len()); // 5
 
-// Convert back to writable Buffer
+// Convert back to Buffer copy
 const converted = bytes.asSlice();
-console.log(converted.toString()); // "Hello from Bytes!"
+console.log(converted.toString()); // "Hello"
 ```
