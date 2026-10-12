@@ -244,6 +244,26 @@ test("numeric read and write methods", () => {
   expect(varBuf4Neg.readIntLE(0, 4)).toBe(-123456);
 });
 
+test("toBase64, toHex, setFromBase64, and setFromHex", () => {
+  const buf = Buffer.from("hello world");
+  expect(buf.toHex()).toBe("68656c6c6f20776f726c64");
+  expect(buf.toBase64()).toBe("aGVsbG8gd29ybGQ=");
+  expect(buf.toBase64({ omitPadding: true })).toBe("aGVsbG8gd29ybGQ");
+
+  const targetBuf = Buffer.alloc(20);
+  const resHex = targetBuf.setFromHex("68656c6c6f");
+  expect(resHex.read).toBe(10);
+  expect(resHex.written).toBe(5);
+  expect(targetBuf.subarray(0, 5).toString()).toBe("hello");
+
+  const resB64 = targetBuf.setFromBase64("aGVsbG8=", 5);
+  expect(resB64.read).toBe(8);
+  expect(resB64.written).toBe(5);
+  expect(targetBuf.subarray(5, 10).toString()).toBe("hello");
+
+  expect(() => targetBuf.setFromHex("invalid_hex")).toThrow();
+});
+
 test("atob and btoa", () => {
   const encoded = btoa("hello");
   expect(encoded).toBe("aGVsbG8=");

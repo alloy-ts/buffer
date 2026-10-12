@@ -353,6 +353,35 @@ export class Buffer extends Uint8Array {
     return this;
   }
 
+  toBase64(options?: { alphabet?: "base64" | "base64url"; omitPadding?: boolean }): string {
+    const alphabet = options?.alphabet ?? "base64";
+    const omitPadding = options?.omitPadding ?? false;
+    let str = this.toString(alphabet as any);
+    if (omitPadding && alphabet === "base64") {
+      str = str.replace(/=+$/, "");
+    }
+    return str;
+  }
+
+  toHex(): string {
+    return this.toString("hex");
+  }
+
+  setFromBase64(base64: string, offset = 0): { read: number; written: number } {
+    const decoded = Buffer.from(base64, "base64");
+    const written = decoded.copy(this, offset);
+    return { read: base64.length, written };
+  }
+
+  setFromHex(hex: string, offset = 0): { read: number; written: number } {
+    if (hex.length % 2 !== 0 || /[^0-9a-fA-F]/.test(hex)) {
+      throw new TypeError("Invalid hex string");
+    }
+    const decoded = Buffer.from(hex, "hex");
+    const written = decoded.copy(this, offset);
+    return { read: hex.length, written };
+  }
+
   // --- Read Methods ---
 
   readInt8(offset = 0): number {
