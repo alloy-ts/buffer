@@ -10,7 +10,7 @@
  *
  *   node --import @oxc-node/core/register examples/bytes.ts
  */
-import { Bytes, Buffer } from "../src/buffer.ts";
+import { Bytes, Buffer } from "../index.js";
 
 const log = (label: string, value: unknown): void => {
   console.log(`\x1b[36m${label}\x1b[0m`, value);

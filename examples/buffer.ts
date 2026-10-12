@@ -6,7 +6,7 @@
  *
  *   node --import @oxc-node/core/register examples/buffer.ts
  */
-import { Buffer, constants, INSPECT_MAX_BYTES, kMaxLength, kStringMaxLength, SlowBuffer } from "../src/buffer.ts";
+import { Buffer, constants, INSPECT_MAX_BYTES, kMaxLength, kStringMaxLength, SlowBuffer } from "../index.js";
 
 const log = (label: string, value: unknown): void => {
   console.log(`\x1b[36m${label}\x1b[0m`, value);
