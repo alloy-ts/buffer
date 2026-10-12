@@ -1,6 +1,6 @@
 # `node:buffer` API Compatibility Matrix
 
-This document provides a detailed review of our built native artifact and TypeScript library against the standard Node.js `node:buffer` API specification.
+This document provides a detailed review of our built native artifact (`dist/index.js`) and TypeScript library against the standard Node.js `node:buffer` API specification.
 
 ## Compatibility Summary
 
@@ -10,6 +10,7 @@ This document provides a detailed review of our built native artifact and TypeSc
 - **File Class:** 100%
 - **Standalone Functions:** 100% (6/6 functions)
 - **Constants & Variables:** 100% (5/5 exports)
+- **Additional NAPI Bindings:** `Bytes` class binding (`bytes::Bytes` high-performance byte buffer wrapper)
 
 ---
 
