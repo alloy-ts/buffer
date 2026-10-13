@@ -26,6 +26,12 @@ async function run() {
   if (fs.existsSync("./dist/my-addon.linux-x64-gnu.node")) {
     fs.copyFileSync("./dist/my-addon.linux-x64-gnu.node", "./my-addon.linux-x64-gnu.node");
   }
+  if (fs.existsSync("./dist/index.js")) {
+    fs.copyFileSync("./dist/index.js", "./index.js");
+  }
+  if (fs.existsSync("./dist/index.d.ts")) {
+    fs.copyFileSync("./dist/index.d.ts", "./index.d.ts");
+  }
 }
 
 void run().catch((err) => {

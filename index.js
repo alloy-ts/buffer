@@ -716,41 +716,23 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const {
-  Buffer,
-  Blob,
-  File,
-  Bytes,
-  add,
-  atob,
-  btoa,
-  constants,
-  inspectMaxBytes,
-  isAscii,
-  isLatin1,
-  isUtf8,
-  kMaxLength,
-  kStringMaxLength,
-  resolveObjectUrl,
-  transcode,
-} = nativeBinding
-
-export {
-  Buffer,
-  Blob,
-  File,
-  Bytes,
-  add,
-  atob,
-  btoa,
-  constants,
-  inspectMaxBytes,
-  isAscii,
-  isLatin1,
-  isUtf8,
-  kMaxLength,
-  kStringMaxLength,
-  resolveObjectUrl,
-  transcode,
-}
+const { Blob, Buffer, Bytes, File, Reader, Server, add, atob, btoa, constants, inspectMaxBytes, isAscii, isLatin1, isUtf8, kMaxLength, kStringMaxLength, resolveObjectUrl, transcode } = nativeBinding
+export { Blob }
+export { Buffer }
+export { Bytes }
+export { File }
+export { Reader }
+export { Server }
+export { add }
+export { atob }
+export { btoa }
+export { constants }
+export { inspectMaxBytes }
+export { isAscii }
+export { isLatin1 }
+export { isUtf8 }
+export { kMaxLength }
+export { kStringMaxLength }
+export { resolveObjectUrl }
+export { transcode }
 export const __napiBindingTarget = __napiLoadedBindingTarget

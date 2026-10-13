@@ -9,4 +9,390 @@
  */
 export declare const __napiBindingTarget: 'native' | 'wasm32-wasi' | 'wasm32-wasip1'
 
+export declare class Blob {
+  constructor(sources?: Array<unknown> | undefined | null, options?: BlobOptions | undefined | null)
+  get size(): number
+  get type(): string
+  arrayBuffer(): Buffer
+  bytes(): Buffer
+  slice(start?: number | undefined | null, end?: number | undefined | null, mimeType?: string | undefined | null): Blob
+  text(): string
+  stream(): Buffer
+  textStream(): string
+}
+
+export declare class Buffer {
+  /** Creates a zero-filled buffer of `length` bytes (like `Buffer.alloc`). */
+  constructor(length: number)
+  /** Allocates a zero-filled buffer of `length` bytes. */
+  static alloc(length: number, fill?: number | undefined | null, encoding?: string | undefined | null): Buffer
+  /** Allocates an *uninitialized* buffer of `length` bytes. */
+  static allocUnsafe(length: number, alignment?: number | undefined | null): Buffer
+  /** Allocates an unpooled uninitialized buffer of `length` bytes. */
+  static allocUnsafeSlow(length: number, alignment?: number | undefined | null): Buffer
+  /** Calculates byte length of `string` or buffer view. */
+  static byteLength(string: unknown, encoding?: string | undefined | null): number
+  /** Returns string length in UTF-16 code units. */
+  static stringLength(input: unknown, encoding?: string | undefined | null): number
+  /** Copies memory from `view` into a new Buffer. */
+  static copyBytesFrom(view: Buffer, offset?: number | undefined | null, length?: number | undefined | null): Buffer
+  /** Static compare helper. */
+  static compareStatic(buf1: Buffer, buf2: Buffer): number
+  /** Creates a buffer by copying an existing Node `Buffer`. */
+  static fromBuffer(buffer: Buffer): Buffer
+  /** Creates a buffer from a string in the given encoding (default `utf8`). */
+  static fromString(string: string, encoding?: string | undefined | null): Buffer
+  /** Creates a buffer from an array of numbers, each truncated mod 256. */
+  static fromArray(items: Array<number>): Buffer
+  /**
+   * Concatenates a list of buffers into one. If `total_length` is omitted it
+   * is the sum of the input lengths.
+   */
+  static concat(list: Array<Buffer>, totalLength?: number | undefined | null): Buffer
+  /** Returns true if `value` is a Node `Buffer`. */
+  static isBuffer(value: unknown): boolean
+  /** Returns true if `encoding` is a supported encoding name. */
+  static isEncoding(encoding: string): boolean
+  /** The number of bytes in the buffer. */
+  get length(): number
+  /** The byteOffset of the underlying ArrayBuffer. */
+  get byteOffset(): number
+  /** The underlying ArrayBuffer object. */
+  get buffer(): Buffer
+  /** Deprecated alias for buffer. */
+  get parent(): Buffer
+  readUInt8(offset?: number | undefined | null): number
+  readUInt8Le(offset?: number | undefined | null): number
+  readUInt8Be(offset?: number | undefined | null): number
+  readInt8(offset?: number | undefined | null): number
+  readUInt16LE(offset?: number | undefined | null): number
+  readUInt16BE(offset?: number | undefined | null): number
+  readInt16LE(offset?: number | undefined | null): number
+  readInt16BE(offset?: number | undefined | null): number
+  readUInt32LE(offset?: number | undefined | null): number
+  readUInt32BE(offset?: number | undefined | null): number
+  readInt32LE(offset?: number | undefined | null): number
+  readInt32BE(offset?: number | undefined | null): number
+  readFloatLE(offset?: number | undefined | null): number
+  readFloatBE(offset?: number | undefined | null): number
+  readDoubleLE(offset?: number | undefined | null): number
+  readDoubleBE(offset?: number | undefined | null): number
+  readBigUInt64LE(offset?: number | undefined | null): bigint
+  readBigUInt64BE(offset?: number | undefined | null): bigint
+  readBigInt64LE(offset?: number | undefined | null): bigint
+  readBigInt64BE(offset?: number | undefined | null): bigint
+  readUint8(offset?: number | undefined | null): number
+  readUint16Le(offset?: number | undefined | null): number
+  readUint16Be(offset?: number | undefined | null): number
+  readUint32Le(offset?: number | undefined | null): number
+  readUint32Be(offset?: number | undefined | null): number
+  readBigUint64Le(offset?: number | undefined | null): bigint
+  readBigUint64Be(offset?: number | undefined | null): bigint
+  readIntBE(offset: number, byteLength: number): bigint
+  readIntLE(offset: number, byteLength: number): bigint
+  readUIntBE(offset: number, byteLength: number): bigint
+  readUIntLE(offset: number, byteLength: number): bigint
+  readUintBE(offset: number, byteLength: number): bigint
+  readUintLE(offset: number, byteLength: number): bigint
+  writeUInt8(value: number, offset?: number | undefined | null): number
+  writeInt8(value: number, offset?: number | undefined | null): number
+  writeUInt16LE(value: number, offset?: number | undefined | null): number
+  writeUInt16BE(value: number, offset?: number | undefined | null): number
+  writeInt16LE(value: number, offset?: number | undefined | null): number
+  writeInt16BE(value: number, offset?: number | undefined | null): number
+  writeUInt32LE(value: number, offset?: number | undefined | null): number
+  writeUInt32BE(value: number, offset?: number | undefined | null): number
+  writeInt32LE(value: number, offset?: number | undefined | null): number
+  writeInt32BE(value: number, offset?: number | undefined | null): number
+  writeFloatLE(value: number, offset?: number | undefined | null): number
+  writeFloatBE(value: number, offset?: number | undefined | null): number
+  writeDoubleLE(value: number, offset?: number | undefined | null): number
+  writeDoubleBE(value: number, offset?: number | undefined | null): number
+  writeBigUInt64LE(value: bigint, offset?: number | undefined | null): number
+  writeBigUInt64BE(value: bigint, offset?: number | undefined | null): number
+  writeBigInt64LE(value: bigint, offset?: number | undefined | null): number
+  writeBigInt64BE(value: bigint, offset?: number | undefined | null): number
+  writeUint8(value: number, offset?: number | undefined | null): number
+  writeUint16Le(value: number, offset?: number | undefined | null): number
+  writeUint16Be(value: number, offset?: number | undefined | null): number
+  writeUint32Le(value: number, offset?: number | undefined | null): number
+  writeUint32Be(value: number, offset?: number | undefined | null): number
+  writeBigUint64Le(value: bigint, offset?: number | undefined | null): number
+  writeBigUint64Be(value: bigint, offset?: number | undefined | null): number
+  writeIntBE(value: bigint, offset: number, byteLength: number): number
+  writeIntLE(value: bigint, offset: number, byteLength: number): number
+  writeUIntBE(value: bigint, offset: number, byteLength: number): number
+  writeUIntLE(value: bigint, offset: number, byteLength: number): number
+  writeUintBE(value: bigint, offset: number, byteLength: number): number
+  writeUintLE(value: bigint, offset: number, byteLength: number): number
+  /**
+   * Writes `string` into the buffer at `offset` (optionally limiting to
+   * `length` bytes) using `encoding`. Returns the number of bytes written.
+   */
+  write(string: string, offset?: number | undefined | null, length?: number | undefined | null, encoding?: string | undefined | null): number
+  /** Decodes the buffer (or `start..end`) using `encoding`. */
+  toString(encoding?: string | undefined | null, start?: number | undefined | null, end?: number | undefined | null): string
+  /** Returns a JSON-compatible representation `{ type: "Buffer", data: [...] }`. */
+  toJson(): BufferJson
+  /** Returns a copy of the bytes in `start..end` as a Node `Buffer`. */
+  slice(start?: number | undefined | null, end?: number | undefined | null): Buffer
+  /**
+   * Alias of `slice` (Node's `subarray` shares memory; here it copies, as
+   * napi cannot hand back a shared view).
+   */
+  subarray(start?: number | undefined | null, end?: number | undefined | null): Buffer
+  /** Returns a copy of all written bytes as a Node `Buffer`. */
+  bytes(): Buffer
+  /**
+   * Fills `value` (number, string, or buffer) over `start..end`. Mutates in
+   * place.
+   */
+  fillNumber(value: number, start?: number | undefined | null, end?: number | undefined | null): void
+  fillString(value: string, start?: number | undefined | null, end?: number | undefined | null, encoding?: string | undefined | null): void
+  fillBuffer(value: Buffer, start?: number | undefined | null, end?: number | undefined | null): void
+  /** Returns true if the bytes equal `other`. */
+  equals(other: Buffer): boolean
+  /** Lexicographic comparison with `other`: -1, 0, or 1. */
+  compare(other: Buffer): number
+  /** Returns the index of `value` (a byte, searched from `offset`), or -1. */
+  indexOfNumber(value: number, offset?: number | undefined | null): number
+  indexOfString(value: string, offset?: number | undefined | null, encoding?: string | undefined | null): number
+  includesNumber(value: number, offset?: number | undefined | null): boolean
+  includesString(value: string, offset?: number | undefined | null, encoding?: string | undefined | null): boolean
+  lastIndexOfNumber(value: number, offset?: number | undefined | null): number
+  lastIndexOfString(value: string, offset?: number | undefined | null, encoding?: string | undefined | null): number
+  copy(target: Buffer, targetStart?: number | undefined | null, sourceStart?: number | undefined | null, sourceEnd?: number | undefined | null): number
+  keys(): Array<number>
+  values(): Array<number>
+  entries(): Array<Array<number>>
+  /** Reverses the buffer in place. */
+  reverse(): void
+  /** Swaps the byte order of each 16-bit word in place. */
+  swap16(): void
+  swap32(): void
+  swap64(): void
+  putSlice(src: Buffer): void
+  putBytes(val: number, cnt: number): void
+  putU8(n: number): void
+  putI8(n: number): void
+  putU16(n: number): void
+  putU16Le(n: number): void
+  putU16Ne(n: number): void
+  putI16(n: number): void
+  putI16Le(n: number): void
+  putI16Ne(n: number): void
+  putU32(n: number): void
+  putU32Le(n: number): void
+  putU32Ne(n: number): void
+  putI32(n: number): void
+  putI32Le(n: number): void
+  putI32Ne(n: number): void
+  putU64(n: bigint): void
+  putU64Le(n: bigint): void
+  putU64Ne(n: bigint): void
+  putI64(n: bigint): void
+  putI64Le(n: bigint): void
+  putI64Ne(n: bigint): void
+  putU128(n: bigint): void
+  putU128Le(n: bigint): void
+  putU128Ne(n: bigint): void
+  putI128(n: bigint): void
+  putI128Le(n: bigint): void
+  putI128Ne(n: bigint): void
+  putUint(n: bigint, nbytes: number): void
+  putUintLe(n: bigint, nbytes: number): void
+  putF32(n: number): void
+  putF32Le(n: number): void
+  putF64(n: number): void
+  putF64Le(n: number): void
+  /** Ensures capacity for at least `additional` more bytes. */
+  reserve(additional: number): void
+}
+
+export declare class Bytes {
+  /** Creates a new empty `Bytes`. This does not allocate. */
+  constructor()
+  /**
+   * Creates a `Bytes` by copying the contents of the given buffer.
+   *
+   * Corresponds to `Bytes::copy_from_slice` / `Bytes::from(Vec<u8>)`.
+   */
+  static fromBuffer(buffer: Buffer): Bytes
+  /** Returns the number of bytes contained in this `Bytes`. */
+  len(): number
+  /** Returns true if the `Bytes` has a length of 0. */
+  isEmpty(): boolean
+  /**
+   * Returns true if this is the only reference to the data and a conversion
+   * into a uniquely-owned buffer would avoid copying the underlying memory.
+   *
+   * Always returns false for static / owner-backed data.
+   */
+  isUnique(): boolean
+  /**
+   * Returns a slice of self for the half-open range `[start, end)`.
+   *
+   * If `end` is omitted it defaults to `len()`. This is an O(1) operation
+   * that increments the reference count; the returned `Bytes` shares the
+   * same backing storage as `self`.
+   */
+  slice(start: number, end?: number | undefined | null): Bytes
+  /**
+   * Splits the bytes into two at `at`.
+   *
+   * After the call `self` contains elements `[0, at)` and the returned
+   * `Bytes` contains `[at, len)`. O(1).
+   */
+  splitOff(at: number): Bytes
+  /**
+   * Splits the bytes into two at `at`.
+   *
+   * After the call `self` contains elements `[at, len)` and the returned
+   * `Bytes` contains `[0, at)`. O(1).
+   */
+  splitTo(at: number): Bytes
+  /**
+   * Shortens the buffer, keeping the first `len` bytes and dropping the rest.
+   *
+   * If `len` is greater than the current length this has no effect.
+   */
+  truncate(len: number): void
+  /** Clears the buffer, removing all data. */
+  clear(): void
+  /**
+   * Attempts to obtain a uniquely-owned view of the data.
+   *
+   * Returns `Some(owned)` when this handle is the unique owner (so the
+   * conversion is cheap, with no copy), and `None` otherwise. The original
+   * `Bytes` is preserved either way.
+   *
+   * Note: a full `try_into_mut` would yield a `BytesMut` for in-place edits,
+   * which cannot be exposed through napi without a dedicated mutable binding;
+   * this is a faithful read-oriented approximation.
+   */
+  tryIntoMut(): Bytes | null
+  /**
+   * Returns a copy of the visible bytes as a Node `Buffer`.
+   *
+   * This is a copy: napi-rs cannot hand out a zero-copy view that outlives
+   * the call. Use `slice`/`split_*` to share storage cheaply inside Rust.
+   */
+  asSlice(): Buffer
+  /**
+   * Returns a `Reader` that reads from this `Bytes`.
+   *
+   * This is the idiomatic equivalent of `Buf::reader(self)`; the reader owns
+   * its own clone of the buffer, so this `Bytes` remains usable afterwards.
+   */
+  reader(): Reader
+  /**
+   * Returns a node:buffer-compatible `Buffer` (a copy) over this `Bytes`.
+   *
+   * The returned `Buffer` is an independent, writable copy, so this `Bytes`
+   * remains usable afterwards.
+   */
+  buf(): Buffer
+}
+
+export declare class File {
+  constructor(sources: Array<unknown> | undefined | null, fileName: string, options?: FileOptions | undefined | null)
+  get name(): string
+  get lastModified(): bigint
+  get size(): number
+  get type(): string
+  arrayBuffer(): Buffer
+  bytes(): Buffer
+  slice(start?: number | undefined | null, end?: number | undefined | null, mimeType?: string | undefined | null): Blob
+  text(): string
+}
+
+export declare class Reader {
+  getRef(): Buffer
+}
+
+export declare class Server {
+  constructor(port?: number | undefined | null, address?: string | undefined | null)
+  getPort(): number
+  getAddress(): string
+  mount(basePath: string, routes: Array<Route>): void
+  route(method: string, path: string, responseBody: string): void
+  launch(): string
+  stop(): void
+}
+
 export declare function add(left: number, right: number): number
+
+/** Decodes a Base64 string into bytes and re-encodes those bytes as Latin-1. */
+export declare function atob(data: string): string
+
+export interface BlobOptions {
+  type?: string
+  endings?: string
+}
+
+/** Decodes a string as Latin-1 into bytes and encodes those bytes as Base64. */
+export declare function btoa(data: string): string
+
+export interface BufferConstants {
+  maxLength: bigint
+  maxStringLength: number
+  inspectMaxBytes: number
+  kMaxLength: bigint
+  kStringMaxLength: number
+}
+
+export interface BufferJson {
+  type: string
+  data: Array<number>
+}
+
+/** Returns the `node:buffer` constants. */
+export declare function constants(): BufferConstants
+
+export interface FileOptions {
+  type?: string
+  endings?: string
+  lastModified?: bigint
+}
+
+/** Constant: maximum number of bytes returned when `buf.inspect()` is called. */
+export declare function inspectMaxBytes(): number
+
+/** Returns true if `input` contains only ASCII bytes. */
+export declare function isAscii(input: Buffer): boolean
+
+/** Returns true if every UTF-16 code unit of `input` is in the range U+0000 to U+00FF. */
+export declare function isLatin1(input: string): boolean
+
+/** Returns true if `input` is valid UTF-8. */
+export declare function isUtf8(input: Buffer): boolean
+
+/** Constant: largest size allowed for a single `Buffer` instance. */
+export declare function kMaxLength(): bigint
+
+/** Constant: largest length allowed for a single `string` instance. */
+export declare function kStringMaxLength(): number
+
+export interface Request {
+  method: string
+  uri: string
+  headers: Record<string, string>
+  body: string
+}
+
+/** Resolves a `blob:nodedata:...` URL string to its registered `Blob`. */
+export declare function resolveObjectUrl(id: string): Blob
+
+export interface Response {
+  status: number
+  headers?: Record<string, string>
+  body?: string
+}
+
+export interface Route {
+  method: string
+  path: string
+}
+
+/** Re-encodes `source` from `from_encoding` to `to_encoding`. */
+export declare function transcode(source: Buffer, fromEncoding: string, toEncoding: string): Buffer
