@@ -170,6 +170,27 @@ test("buf.indexOf, lastIndexOf, includes", () => {
 
   const buf2 = Buffer.from("this buffer is a buffer");
   expect(buf2.lastIndexOf("buffer")).toBe(17);
+
+  // Negative offset and encoding parameter overloads
+  expect(buf.indexOf("is", -14)).toBe(2);
+  expect(buf.includes("this", 4)).toBe(false);
+  expect(buf.indexOf("this", "utf8")).toBe(0);
+  expect(buf.includes("buffer", "utf8")).toBe(true);
+  expect(buf2.lastIndexOf("buffer", -10)).toBe(5);
+});
+
+test("buf.fill with overload signatures and negative ranges", () => {
+  const b1 = Buffer.alloc(10);
+  b1.fill("a", "utf8");
+  expect(b1.toString()).toBe("aaaaaaaaaa");
+
+  const b2 = Buffer.alloc(10);
+  b2.fill("b", 2, "utf8");
+  expect(b2.toString()).toBe("\0\0bbbbbbbb");
+
+  const b3 = Buffer.alloc(10);
+  b3.fill("c", -5, -2);
+  expect(b3.toString()).toBe("\0\0\0\0\0ccc\0\0");
 });
 
 test("buf.swap16, swap32, swap64", () => {

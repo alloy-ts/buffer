@@ -491,21 +491,42 @@ pub fn buf_copy_bytes_from(
 
 // --- fill ----------------------------------------------------------------
 
+fn resolve_range(len: usize, start: Option<f64>, end: Option<f64>, default_end: Option<f64>) -> (usize, usize) {
+  let l = len as f64;
+  let mut s = start.unwrap_or(0.0);
+  if s < 0.0 {
+    s += l;
+    if s < 0.0 {
+      s = 0.0;
+    }
+  }
+  let s_idx = (s as usize).min(len);
+
+  let mut e = end.or(default_end).unwrap_or(l);
+  if e < 0.0 {
+    e += l;
+    if e < 0.0 {
+      e = 0.0;
+    }
+  }
+  let e_idx = (e as usize).min(len);
+  (s_idx, e_idx)
+}
+
 /// `buf.fill(value[, start[, end]][, encoding])`.
 #[napi(js_name = "bufFill")]
 pub fn buf_fill(
   env: Env,
   mut buf: Buffer,
   value: Unknown,
-  start: Option<u32>,
-  end: Option<u32>,
+  start: Option<f64>,
+  end: Option<f64>,
   encoding: Option<String>,
 ) -> Result<()> {
   let data = buf.as_mut();
-  let s = (start.unwrap_or(0) as usize).min(data.len());
-  let e = (end.unwrap_or(data.len() as u32) as usize).min(data.len());
+  let (s, e) = resolve_range(data.len(), start, end, None);
   if s > e {
-    return Err(Error::new(Status::InvalidArg, "invalid start/end range"));
+    return Ok(());
   }
   let raw = raw_of(&value);
   if let Ok(n) = unsafe { f64::from_napi_value(env.raw(), raw) } {
@@ -617,14 +638,16 @@ pub fn buf_index_of(
   env: Env,
   buf: Buffer,
   value: Unknown,
-  byte_offset: Option<u32>,
-  end: Option<u32>,
+  byte_offset: Option<f64>,
+  end: Option<f64>,
   encoding: Option<String>,
 ) -> Result<i32> {
   let data = buf.as_ref();
   let pat = search_pattern(&env, &value, encoding)?;
-  let o = (byte_offset.unwrap_or(0) as usize).min(data.len());
-  let e = (end.unwrap_or(data.len() as u32) as usize).min(data.len());
+  let (o, e) = resolve_range(data.len(), byte_offset, end, None);
+  if o >= e && !matches!(pat, SearchValue::Bytes(ref b) if b.is_empty()) {
+    return Ok(-1);
+  }
   Ok(search_from(data, o, e, &pat, false))
 }
 
@@ -634,14 +657,25 @@ pub fn buf_last_index_of(
   env: Env,
   buf: Buffer,
   value: Unknown,
-  byte_offset: Option<u32>,
-  end: Option<u32>,
+  byte_offset: Option<f64>,
+  end: Option<f64>,
   encoding: Option<String>,
 ) -> Result<i32> {
   let data = buf.as_ref();
   let pat = search_pattern(&env, &value, encoding)?;
-  let o = (byte_offset.unwrap_or(0) as usize).min(data.len());
-  let e = (end.unwrap_or(data.len() as u32) as usize).min(data.len());
+  let needle_len = match &pat {
+    SearchValue::Number(_) => 1,
+    SearchValue::Bytes(b) => b.len(),
+  };
+  let mut bo = byte_offset;
+  if let Some(off) = bo {
+    let mut resolved = off;
+    if resolved < 0.0 {
+      resolved += data.len() as f64;
+    }
+    bo = Some(resolved + needle_len as f64);
+  }
+  let (o, e) = resolve_range(data.len(), Some(0.0), bo, end);
   Ok(search_from(data, o, e, &pat, true))
 }
 
@@ -651,8 +685,8 @@ pub fn buf_includes(
   env: Env,
   buf: Buffer,
   value: Unknown,
-  byte_offset: Option<u32>,
-  end: Option<u32>,
+  byte_offset: Option<f64>,
+  end: Option<f64>,
   encoding: Option<String>,
 ) -> Result<bool> {
   Ok(buf_index_of(env, buf, value, byte_offset, end, encoding)? >= 0)

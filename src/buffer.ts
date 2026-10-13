@@ -250,36 +250,78 @@ export class Buffer extends Uint8Array {
 
   override fill(
     value: string | Uint8Array | number,
-    offset?: number,
-    end?: number,
+    offsetOrEncoding?: number | string,
+    endOrEncoding?: number | string,
     encoding?: string,
   ): this {
-    native.bufFill(this, value, offset, end, encoding);
+    let offset: number | undefined;
+    let end: number | undefined;
+    let enc: string | undefined = encoding;
+
+    if (typeof offsetOrEncoding === "string") {
+      enc = offsetOrEncoding;
+    } else if (typeof offsetOrEncoding === "number") {
+      offset = offsetOrEncoding;
+      if (typeof endOrEncoding === "string") {
+        enc = endOrEncoding;
+      } else if (typeof endOrEncoding === "number") {
+        end = endOrEncoding;
+      }
+    }
+
+    native.bufFill(this, value, offset, end, enc);
     return this;
   }
 
   override indexOf(
     value: string | number | Uint8Array,
-    byteOffset?: number,
+    byteOffsetOrEncoding?: number | string,
     encoding?: string,
   ): number {
-    return native.bufIndexOf(this, value, byteOffset, undefined, encoding);
+    let offset: number | undefined;
+    let enc: string | undefined = encoding;
+
+    if (typeof byteOffsetOrEncoding === "string") {
+      enc = byteOffsetOrEncoding;
+    } else if (typeof byteOffsetOrEncoding === "number") {
+      offset = byteOffsetOrEncoding;
+    }
+
+    return native.bufIndexOf(this, value, offset, undefined, enc);
   }
 
   override lastIndexOf(
     value: string | number | Uint8Array,
-    byteOffset?: number,
+    byteOffsetOrEncoding?: number | string,
     encoding?: string,
   ): number {
-    return native.bufLastIndexOf(this, value, byteOffset, undefined, encoding);
+    let offset: number | undefined;
+    let enc: string | undefined = encoding;
+
+    if (typeof byteOffsetOrEncoding === "string") {
+      enc = byteOffsetOrEncoding;
+    } else if (typeof byteOffsetOrEncoding === "number") {
+      offset = byteOffsetOrEncoding;
+    }
+
+    return native.bufLastIndexOf(this, value, offset, undefined, enc);
   }
 
   override includes(
     value: string | number | Uint8Array,
-    byteOffset?: number,
+    byteOffsetOrEncoding?: number | string,
     encoding?: string,
   ): boolean {
-    return native.bufIncludes(this, value, byteOffset, undefined, encoding);
+    let offset: number | undefined;
+    let enc: string | undefined = encoding;
+
+    if (typeof byteOffsetOrEncoding === "string") {
+      enc = byteOffsetOrEncoding;
+    } else if (typeof byteOffsetOrEncoding === "number") {
+      offset = byteOffsetOrEncoding;
+    }
+
+    return native.bufIncludes(this, value, offset, undefined, enc);
   }
 
   override slice(start?: number, end?: number): Buffer {
