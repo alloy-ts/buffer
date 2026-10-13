@@ -2239,5 +2239,100 @@ pub const kStringMaxLength: u32 = MAX_STRING_LENGTH;
 #[napi]
 pub const INSPECT_MAX_BYTES: u32 = INSPECT_MAX_BYTES_VALUE;
 
+#[allow(non_upper_case_globals)]
 #[napi]
 pub const poolSize: u32 = POOL_SIZE;
+
+// ===========================================================================
+// Top-level native module helper exports (matching native.buf* calls).
+// ===========================================================================
+
+#[napi(js_name = "bufIsEncoding")]
+pub fn buf_is_encoding(encoding: String) -> bool {
+  AlloyBuffer::is_encoding(encoding)
+}
+
+#[napi(js_name = "bufByteLength")]
+pub fn buf_byte_length(env: Env, value: Unknown, encoding: Option<String>) -> Result<u32> {
+  AlloyBuffer::byte_length(env, value, encoding)
+}
+
+#[napi(js_name = "bufDecode")]
+pub fn buf_decode(input: String, encoding: Option<String>) -> Result<AlloyBuffer> {
+  let enc = encoding.unwrap_or_else(|| "utf8".to_string());
+  let bytes = str_to_bytes(&input, &enc)?;
+  Ok(AlloyBuffer::from_vec(bytes))
+}
+
+#[napi(js_name = "bufEncode")]
+pub fn buf_encode(buf: &AlloyBuffer, encoding: Option<String>, start: Option<u32>, end: Option<u32>) -> Result<String> {
+  buf.to_str(encoding, start, end)
+}
+
+#[napi(js_name = "bufConcat")]
+pub fn buf_concat(list: Vec<&AlloyBuffer>, total_length: Option<u32>) -> AlloyBuffer {
+  AlloyBuffer::concat(list, total_length)
+}
+
+#[napi(js_name = "bufCompare")]
+pub fn buf_compare(buf1: &AlloyBuffer, buf2: &AlloyBuffer) -> i32 {
+  AlloyBuffer::compare_static(buf1, buf2)
+}
+
+#[napi(js_name = "bufCopyBytesFrom")]
+pub fn buf_copy_bytes_from(
+  env: Env,
+  view: Unknown,
+  offset: Option<u32>,
+  length: Option<u32>,
+) -> Result<AlloyBuffer> {
+  AlloyBuffer::copy_bytes_from(env, view, offset, length)
+}
+
+#[napi(js_name = "bufFill")]
+pub fn buf_fill(
+  env: Env,
+  buf: &mut AlloyBuffer,
+  value: Unknown,
+  a: Option<Unknown>,
+  b: Option<Unknown>,
+  c: Option<String>,
+) -> Result<()> {
+  buf.fill(env, value, a, b, c)
+}
+
+#[napi(js_name = "bufWrite")]
+pub fn buf_write(
+  env: Env,
+  buf: &mut AlloyBuffer,
+  string: String,
+  a: Option<Unknown>,
+  b: Option<Unknown>,
+  c: Option<String>,
+) -> Result<u32> {
+  buf.write(env, string, a, b, c)
+}
+
+#[napi(js_name = "bufIndexOf")]
+pub fn buf_index_of(
+  env: Env,
+  buf: &AlloyBuffer,
+  value: Unknown,
+  a: Option<Unknown>,
+  b: Option<Unknown>,
+  c: Option<String>,
+) -> Result<i32> {
+  buf.index_of(env, value, a, b, c)
+}
+
+#[napi(js_name = "bufLastIndexOf")]
+pub fn buf_last_index_of(
+  env: Env,
+  buf: &AlloyBuffer,
+  value: Unknown,
+  a: Option<Unknown>,
+  b: Option<Unknown>,
+  c: Option<String>,
+) -> Result<i32> {
+  buf.last_index_of(env, value, a, b, c)
+}
