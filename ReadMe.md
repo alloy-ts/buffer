@@ -1,10 +1,10 @@
 # Buffer
 
-High-performance native Node.js `node:buffer` compatible implementation backed by Rust `bytes` crate via NAPI-RS bindings.
+High-performance native Node.js `node:buffer` compatible implementation backed by Rust `bytes` crate via NAPI-RS bindings. Type definitions (`index.d.ts`) and JavaScript runtime bindings are auto-generated directly from Rust `#[napi]` declarations.
 
 ## Features
 
-- **`Buffer` Class:** Full `Uint8Array` subclass providing Node.js `Buffer` static and instance methods.
+- **`Buffer` Class:** High-performance native `Buffer` class providing Node.js `Buffer` static and instance methods.
 - **Fast Encodings:** Support for `utf8`, `ascii`, `latin1`/`binary`, `hex`, `base64`, `base64url`, and `utf16le`/`ucs2`.
 - **Numeric & BigInt I/O:** Complete big-endian and little-endian 8-bit, 16-bit, 32-bit, 64-bit, and variable byte length (1–6 bytes) integer/float/double read and write operations.
 - **`Blob` & `File` Classes:** Web-compatible `Blob` and `File` implementations with `arrayBuffer()`, `bytes()`, `text()`, and `slice()`.
