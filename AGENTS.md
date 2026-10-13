@@ -1,11 +1,10 @@
-
-NAPI auto generate index.d.ts automatically baed on #[napi] declaration in Rust already so we should just directly type them in rust using  #[napi] attributes and use type conversions to generate the type declarations automatically (instead of writing ts ) .  
+NAPI auto generate index.d.ts automatically baed on #[napi] declaration in Rust already so we should just directly type them in rust using #[napi] attributes and use type conversions to generate the type declarations automatically (instead of writing ts ) .
 
 Documentations:
 https://napi.rs/docs/concepts/napi-attributes
 https://napi.rs/docs/concepts/types-overwrite
 https://napi.rs/docs/concepts/values
-https://napi.rs/docs/concepts/type-conversions 
+https://napi.rs/docs/concepts/type-conversions
 https://napi.rs/docs/concepts/object
 https://napi.rs/docs/concepts/class
 https://napi.rs/docs/concepts/enum
@@ -13,7 +12,6 @@ https://napi.rs/docs/concepts/error-handling
 https://napi.rs/docs/concepts/typed-array
 https://napi.rs/docs/concepts/reference
 https://napi.rs/docs/concepts/understanding-lifetime
-
 
 Strongly type the NAPI bindings using `#[napi]` attributes:
 
