@@ -57,6 +57,26 @@ test("Buffer.from string and encodings", () => {
   expect(b64Buf.toString("latin1")).toBe("tést");
 });
 
+test("toBase64, toHex, setFromBase64, setFromHex", () => {
+  const buf = Buffer.from([0xfb, 0xff, 0xbf]);
+  expect(buf.toBase64()).toBe("+/+/");
+  expect(buf.toBase64({ alphabet: "base64url" })).toBe("-_-_");
+  expect(buf.toBase64({ omitPadding: true })).toBe("+/+/");
+  expect(buf.toHex()).toBe("fbffbf");
+
+  const target = Buffer.alloc(5);
+  const res1 = target.setFromBase64("aGVsbG8=");
+  expect(res1).toEqual({ read: 8, written: 5 });
+  expect(target.toString()).toBe("hello");
+
+  const targetHex = Buffer.alloc(3);
+  const res2 = targetHex.setFromHex("414243");
+  expect(res2).toEqual({ read: 6, written: 3 });
+  expect(targetHex.toString()).toBe("ABC");
+
+  expect(() => targetHex.setFromHex("invalid")).toThrow(SyntaxError);
+});
+
 test("Buffer.from ArrayBuffer", () => {
   const ab = new ArrayBuffer(10);
   const buf = Buffer.from(ab, 0, 2);

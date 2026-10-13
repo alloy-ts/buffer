@@ -5,30 +5,6 @@ const native = nativeModule as any;
 
 export const Bytes = NativeBytes;
 
-// Normalize the flexible (value, byteOffset|encoding, end|encoding, encoding) overload
-// signatures of indexOf/lastIndexOf/includes into (byteOffset, end, encoding).
-function routeSearchArgs(
-  a?: number | string,
-  b?: number | string,
-  c?: string,
-): [number | undefined, number | undefined, string | undefined] {
-  let byteOffset: number | undefined;
-  let end: number | undefined;
-  let encoding: string | undefined;
-  if (typeof a === "string") {
-    encoding = a;
-  } else if (typeof a === "number") {
-    byteOffset = a;
-    if (typeof b === "string") {
-      encoding = b;
-    } else if (typeof b === "number") {
-      end = b;
-      if (typeof c === "string") encoding = c;
-    }
-  }
-  return [byteOffset, end, encoding];
-}
-
 export class Buffer extends Uint8Array {
   static poolSize: number = native.poolSize ?? 65536;
 
@@ -184,17 +160,6 @@ export class Buffer extends Uint8Array {
     return true;
   }
 
-  constructor(value?: any, encodingOrOffset?: any, length?: any) {
-    // Legacy `new Buffer(string, encoding)` must encode the string.
-    if (typeof value === "string") {
-      const enc = typeof encodingOrOffset === "string" ? encodingOrOffset : "utf8";
-      const res = native.bufDecode(value, enc);
-      super(res.buffer, res.byteOffset, res.byteLength);
-      return;
-    }
-    super(value, encodingOrOffset, length);
-  }
-
   private _dv(): DataView {
     return new DataView(this.buffer, this.byteOffset, this.byteLength);
   }
@@ -232,40 +197,6 @@ export class Buffer extends Uint8Array {
       type: "Buffer",
       data: Array.from(this),
     };
-  }
-
-  toHex(): string {
-    return this.toString("hex");
-  }
-
-  toBase64(options?: { alphabet?: "base64" | "base64url"; omitPadding?: boolean }): string {
-    const alphabet = options?.alphabet === "base64url" ? "base64url" : "base64";
-    let s = this.toString(alphabet);
-    if (options?.omitPadding) {
-      s = s.replace(/=+$/, "");
-    }
-    return s;
-  }
-
-  setFromBase64(base64: string, offset = 0): { read: number; written: number } {
-    const decoded = Buffer.from(base64, "base64");
-    const space = this.length - offset;
-    if (space <= 0) return { read: 0, written: 0 };
-    const written = Math.min(decoded.length, space);
-    this.set(decoded.subarray(0, written), offset);
-    const read =
-      written === decoded.length
-        ? base64.replace(/\s/g, "").length
-        : Math.floor(written / 3) * 4 +
-          (written % 3 === 1 ? 2 : written % 3 === 2 ? 3 : 0);
-    return { read, written };
-  }
-
-  setFromHex(hex: string): { read: number; written: number } {
-    const decoded = Buffer.from(hex, "hex");
-    const written = Math.min(decoded.length, this.length);
-    this.set(decoded.subarray(0, written), 0);
-    return { read: written * 2, written };
   }
 
   equals(otherBuffer: Uint8Array): boolean {
@@ -319,56 +250,36 @@ export class Buffer extends Uint8Array {
 
   override fill(
     value: string | Uint8Array | number,
-    a?: number | string,
-    b?: number | string,
-    c?: string,
+    offset?: number,
+    end?: number,
+    encoding?: string,
   ): this {
-    let offset: number | undefined;
-    let end: number | undefined;
-    let encoding: string | undefined;
-    if (typeof a === "string") {
-      encoding = a;
-    } else if (typeof a === "number") {
-      offset = a;
-      if (typeof b === "string") {
-        encoding = b;
-      } else if (typeof b === "number") {
-        end = b;
-        if (typeof c === "string") encoding = c;
-      }
-    }
     native.bufFill(this, value, offset, end, encoding);
     return this;
   }
 
   override indexOf(
     value: string | number | Uint8Array,
-    a?: number | string,
-    b?: number | string,
-    c?: string,
+    byteOffset?: number,
+    encoding?: string,
   ): number {
-    const [byteOffset, end, encoding] = routeSearchArgs(a, b, c);
-    return native.bufIndexOf(this, value, byteOffset, end, encoding);
+    return native.bufIndexOf(this, value, byteOffset, undefined, encoding);
   }
 
   override lastIndexOf(
     value: string | number | Uint8Array,
-    a?: number | string,
-    b?: number | string,
-    c?: string,
+    byteOffset?: number,
+    encoding?: string,
   ): number {
-    const [byteOffset, end, encoding] = routeSearchArgs(a, b, c);
-    return native.bufLastIndexOf(this, value, byteOffset, end, encoding);
+    return native.bufLastIndexOf(this, value, byteOffset, undefined, encoding);
   }
 
   override includes(
     value: string | number | Uint8Array,
-    a?: number | string,
-    b?: number | string,
-    c?: string,
+    byteOffset?: number,
+    encoding?: string,
   ): boolean {
-    const [byteOffset, end, encoding] = routeSearchArgs(a, b, c);
-    return native.bufIncludes(this, value, byteOffset, end, encoding);
+    return native.bufIncludes(this, value, byteOffset, undefined, encoding);
   }
 
   override slice(start?: number, end?: number): Buffer {
@@ -396,6 +307,36 @@ export class Buffer extends Uint8Array {
       this[i + 1] = val;
     }
     return this;
+  }
+
+  toBase64(options?: { alphabet?: "base64" | "base64url"; omitPadding?: boolean }): string {
+    return native.bufToBase64(this, options);
+  }
+
+  toHex(): string {
+    return native.bufToHex(this);
+  }
+
+  setFromBase64(base64: string, offset = 0): { read: number; written: number } {
+    if (typeof base64 !== "string") {
+      throw new TypeError('The "base64" argument must be of type string');
+    }
+    if (offset < 0 || offset > this.length) {
+      throw new RangeError("ERR_OUT_OF_RANGE: Index out of range");
+    }
+    const res = native.bufSetFromBase64(this, base64, offset);
+    return { read: res.read, written: res.written };
+  }
+
+  setFromHex(hex: string): { read: number; written: number } {
+    if (typeof hex !== "string") {
+      throw new TypeError('The "hex" argument must be of type string');
+    }
+    if (hex.length % 2 !== 0 || /[^0-9a-fA-F]/.test(hex)) {
+      throw new SyntaxError("Invalid hex string");
+    }
+    const res = native.bufSetFromHex(this, hex);
+    return { read: res.read, written: res.written };
   }
 
   swap32(): this {
