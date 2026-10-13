@@ -10,6 +10,10 @@ crate-type = ["cdylib"]
 bytes = "1.12.1"
 napi = { version = "3", features = ["napi6"] }
 napi-derive = "3"
+rocket = { version = "0.5.1", optional = true }
 
 [build-dependencies]
 napi-build = "2"
+
+[features]
+rocket = ["dep:rocket"]

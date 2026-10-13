@@ -141,6 +141,12 @@ export declare class File {
   get size(): number
 }
 
+export declare class RocketServer {
+  constructor(port?: number | undefined | null)
+  getPort(): number
+  isRunning(): boolean
+}
+
 export declare function add(left: number, right: number): number
 
 /** Decodes a Base64 string into bytes and re-encodes those bytes as Latin-1. */

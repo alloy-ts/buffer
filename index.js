@@ -716,10 +716,11 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { Blob, Bytes, File, add, atob, btoa, bufByteLength, bufCompare, bufConcat, bufCopyBytesFrom, bufDecode, bufEncode, bufFill, bufIncludes, bufIndexOf, bufIsEncoding, bufLastIndexOf, bufStringLength, bufWrite, isAscii, isLatin1, isUtf8, resolveObjectURL, transcode } = nativeBinding
+const { Blob, Bytes, File, RocketServer, add, atob, btoa, bufByteLength, bufCompare, bufConcat, bufCopyBytesFrom, bufDecode, bufEncode, bufFill, bufIncludes, bufIndexOf, bufIsEncoding, bufLastIndexOf, bufStringLength, bufWrite, isAscii, isLatin1, isUtf8, resolveObjectURL, transcode } = nativeBinding
 export { Blob }
 export { Bytes }
 export { File }
+export { RocketServer }
 export { add }
 export { atob }
 export { btoa }
