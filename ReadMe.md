@@ -1,6 +1,6 @@
-# Buffer
+# Buffer & Rocket Native Bindings
 
-High-performance native Node.js `node:buffer` compatible implementation backed by Rust `bytes` crate via NAPI-RS bindings.
+High-performance native Node.js `node:buffer` implementation backed by Rust `bytes` crate and native **Rocket Web Framework** NAPI bindings with code generation support.
 
 ## Features
 
@@ -8,9 +8,13 @@ High-performance native Node.js `node:buffer` compatible implementation backed b
 - **Fast Encodings:** Support for `utf8`, `ascii`, `latin1`/`binary`, `hex`, `base64`, `base64url`, and `utf16le`/`ucs2`.
 - **Numeric & BigInt I/O:** Complete big-endian and little-endian 8-bit, 16-bit, 32-bit, 64-bit, and variable byte length (1–6 bytes) integer/float/double read and write operations.
 - **`Blob` & `File` Classes:** Web-compatible `Blob` and `File` implementations with `arrayBuffer()`, `bytes()`, `text()`, and `slice()`.
+- **Rocket Web Framework Integration:** Native NAPI bindings for the Rocket web framework (`RocketServer`), supporting server configuration, route mounting with JavaScript callbacks, request/response models (`JsRequest`, `JsResponse`), and dispatch testing.
+- **Rocket Code Generation:** Support for parsing route/catcher attributes (`#[get]`, `#[catch]`), generating macros (`routes!`, `catchers!`, `uri!`, `#[launch]`), and compile-time/runtime debug logging (`ROCKET_CODEGEN_DEBUG`).
 - **Utility Functions:** Native `atob`, `btoa`, `isAscii`, `isUtf8`, `transcode`, and module constants (`constants`, `kMaxLength`, `kStringMaxLength`, `INSPECT_MAX_BYTES`, `SlowBuffer`).
 
 ## Usage
+
+### Buffer & Utility Usage
 
 ```ts
 import { Buffer, Blob, File, atob, btoa, isAscii, isUtf8, transcode } from "@alloy-ts/buffer";
@@ -46,6 +50,49 @@ const str = atob(b64); // "hello"
 // Character encoding transcoding
 const transcoded = transcode(Buffer.from("€"), "utf8", "ascii");
 console.log(transcoded.toString("ascii")); // "?"
+```
+
+### Rocket Web Framework & Code Generation Usage
+
+```ts
+import {
+  RocketServer,
+  createJsonResponse,
+  parseRouteAttribute,
+  generateRouteCode,
+  generateRoutesMacro,
+  generateUriMacro,
+} from "@alloy-ts/buffer";
+
+// Initialize Rocket server
+const app = RocketServer.build();
+
+// Mount a route with a JavaScript handler
+app.mountRoute(
+  "/user",
+  { method: "GET", path: "/<id>" },
+  (_err, req) => {
+    return createJsonResponse(
+      200,
+      JSON.stringify({ userId: req.params.id, status: "active" })
+    );
+  }
+);
+
+// Dispatch requests directly (for testing or server execution)
+const response = await app.dispatch("GET", "/user/42", null);
+console.log(response.status); // 200
+console.log(response.body?.toString("utf8")); // '{"userId":"42","status":"active"}'
+
+// Rocket Code Generation
+const meta = parseRouteAttribute("GET", '"/<foo>/bar/<baz..>?<msg>", rank = 1, format = "json"');
+console.log(meta.pathSegments); // [{ name: 'foo', isTrailing: false }, { name: 'baz', isTrailing: true }]
+
+const routeCode = generateRouteCode("GET", "/person/<name>", "getPerson", 1, "json");
+console.log(routeCode.rustCode); // '#[get("/person/<name>", rank = 1, format = "json")]\nfn getPerson() ...'
+
+const uriCode = generateUriMacro("person", { name: "Mike", age: "28" });
+console.log(uriCode.tsCode); // 'export const rocket_uri_macro_person = "/person?name=Mike&age=28";'
 ```
 
 ## Development
