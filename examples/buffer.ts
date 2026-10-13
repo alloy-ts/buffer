@@ -6,7 +6,14 @@
  *
  *   node --import @oxc-node/core/register examples/buffer.ts
  */
-import { Buffer, constants, INSPECT_MAX_BYTES, kMaxLength, kStringMaxLength, SlowBuffer } from "../dist/index.js";
+import {
+  Buffer,
+  constants,
+  INSPECT_MAX_BYTES,
+  kMaxLength,
+  kStringMaxLength,
+  SlowBuffer,
+} from "../dist/index.js";
 
 const log = (label: string, value: unknown): void => {
   console.log(`\x1b[36m${label}\x1b[0m`, value);
@@ -45,14 +52,14 @@ const copied = Buffer.from(utf8);
 log("Buffer.from(buffer) copy equals", copied.equals(utf8)); // true
 
 // Buffer.of(...) convenience constructor
-log("Buffer.of(10, 20, 30)", Buffer.of(10, 20, 30)); // 0a 14 1e
+log("Buffer.of([10, 20, 30])", Buffer.of([10, 20, 30])); // 0a 14 1e
 
 console.log("\n=== Static helpers ===");
 
 log('Buffer.byteLength("tést")', Buffer.byteLength("tést")); // 4 (UTF-8)
 log('Buffer.byteLength("tést", "utf16le")', Buffer.byteLength("tést", "utf16le")); // 8
-log('Buffer.isBuffer(utf8)', Buffer.isBuffer(utf8)); // true
-log('Buffer.isBuffer(new Uint8Array(1))', Buffer.isBuffer(new Uint8Array(1))); // false
+log("Buffer.isBuffer(utf8)", Buffer.isBuffer(utf8)); // true
+log("Buffer.isBuffer(new Uint8Array(1))", Buffer.isBuffer(new Uint8Array(1))); // false
 log('Buffer.isEncoding("utf8")', Buffer.isEncoding("utf8")); // true
 log('Buffer.isEncoding("")', Buffer.isEncoding("")); // false
 
@@ -95,7 +102,7 @@ const haystack = Buffer.from("the quick brown fox");
 log('indexOf("brown")', haystack.indexOf("brown")); // 10
 log('lastIndexOf("o")', haystack.lastIndexOf("o")); // 17
 log('includes("fox")', haystack.includes("fox")); // true
-log('includes(0x71 /* q */)', haystack.includes(0x71)); // true
+log("includes(0x71 /* q */)", haystack.includes(0x71)); // true
 
 const a = Buffer.from("abc");
 const b = Buffer.from("abc");

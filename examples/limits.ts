@@ -9,7 +9,15 @@
  *
  *   node --import @oxc-node/core/register examples/limits.ts
  */
-import { Buffer, constants, INSPECT_MAX_BYTES, kMaxLength, kStringMaxLength, poolSize, SlowBuffer } from "../dist/index.js";
+import {
+  Buffer,
+  constants,
+  INSPECT_MAX_BYTES,
+  kMaxLength,
+  kStringMaxLength,
+  poolSize,
+  SlowBuffer,
+} from "../dist/index.js";
 
 const log = (label: string, value: unknown): void => {
   console.log(`\x1b[36m${label}\x1b[0m`, value);
@@ -32,7 +40,10 @@ console.log("\n=== Deprecated SlowBuffer ===");
 const slow = SlowBuffer(4);
 log("SlowBuffer(4) isBuffer", Buffer.isBuffer(slow)); // true
 log("SlowBuffer(4) length", slow.length); // 4
-log("SlowBuffer.prototype === Buffer.prototype", (slow as unknown as { constructor: unknown }).constructor === Buffer); // true
+log(
+  "SlowBuffer.prototype === Buffer.prototype",
+  (slow as unknown as { constructor: unknown }).constructor === Buffer,
+); // true
 
 console.log("\n=== alloc error behavior ===");
 

@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import * as native from "../index.js";
+import * as native from "../dist/index.js";
 import {
   Buffer,
   Blob,

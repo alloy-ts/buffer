@@ -38,7 +38,7 @@ log("blob.size", blob.size); // 11
 log("blob.type", blob.type); // "text/plain"
 
 // Synchronous accessors (NOT promises in this binding).
-log('blob.text()', blob.text()); // "hello world"
+log("blob.text()", blob.text()); // "hello world"
 // `blob.bytes()` returns the host `Buffer` (a `Uint8Array` view over the bytes).
 const bytesBuf = blob.bytes();
 log("blob.bytes() is a TypedArray view", ArrayBuffer.isView(bytesBuf)); // true
@@ -50,7 +50,7 @@ log("blob.arrayBuffer() contents", Buffer.from(ab).toString()); // "hello world"
 console.log("\n=== Blob slicing ===");
 
 const sliced = blob.slice(0, 5, "text/plain");
-log('blob.slice(0, 5).text()', sliced.text()); // "hello"
+log("blob.slice(0, 5).text()", sliced.text()); // "hello"
 log("blob.slice type", sliced.type); // "text/plain"
 
 // Build a Blob from mixed binary parts
@@ -73,12 +73,12 @@ log("file.name", file.name); // "config.txt"
 log("file.lastModified", file.lastModified); // 1700000000000
 log("file.type", file.type); // "text/plain"
 log("file.size", file.size); // 11
-log('file.text()', file.text()); // "config data"
+log("file.text()", file.text()); // "config data"
 
 // A File sliced still carries its metadata.
 const fileSlice = file.slice(0, 6);
 log("file.slice name", fileSlice.name); // "config.txt"
-log('file.slice text', fileSlice.text()); // "config"
+log("file.slice text", fileSlice.text()); // "config"
 
 console.log("\n=== Base64 (atob / btoa) ===");
 
