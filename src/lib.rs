@@ -1,5 +1,5 @@
-mod bytes;
-mod buffer;
+pub mod bytes;
+pub mod buffer;
 
 use napi_derive::napi;
 

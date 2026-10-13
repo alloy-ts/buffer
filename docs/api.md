@@ -160,7 +160,13 @@ test suite (`src/buffer.test.ts`, `src/bytes.test.ts`).
 
 ## Discrepancies & limitations
 
-1. **`Blob.stream()` / `File.stream()` (missing).** The web `ReadableStream`
+1. **Native NAPI Class Architecture vs Uint8Array Subclassing.**
+   The `Buffer` class in this binding is generated directly via Rust NAPI (`#[napi]`) as `AlloyBuffer` wrapping `Vec<u8>`. NAPI-RS cannot subclass JavaScript `Uint8Array` directly from Rust.
+   - **TypedArray Prototype Methods & Properties:** Standard `Uint8Array` / `TypedArray` methods and properties—such as `[Symbol.iterator]`, `[Symbol.toStringTag]`, `at()`, `buffer`, `byteOffset`, `BYTES_PER_ELEMENT`, `copyWithin`, `entries()`, `every()`, `filter()`, `find()`, `findIndex()`, `findLast()`, `findLastIndex()`, `forEach()`, `join()`, `keys()`, `map()`, `reduce()`, `reduceRight()`, `set()`, `some()`, `sort()`, `toLocaleString()`, `toReversed()`, `toSorted()`, `valueOf()`, `values()`, and `with()`—are **not present** on `Buffer` instances unless explicitly implemented or wrapped in TS/JS.
+   - **Index Access (`buf[0]`):** Index bracket access is `undefined` on `Buffer` instances created via NAPI class bindings.
+   - **`buf.copy()` Target Mutation:** `buf.copy(target)` calculates and returns the number of bytes to copy, but does not mutate `target` in place because NAPI-RS cannot pass a mutable reference to a parameter class instance.
+
+2. **`Blob.stream()` / `File.stream()` (missing).** The web `ReadableStream`
    interface is not provided by this binding, so streaming a Blob in chunks is
    unavailable. Use `blob.bytes()` / `blob.arrayBuffer()` to obtain the full
    payload.

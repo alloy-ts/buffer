@@ -41,9 +41,11 @@ impl Bytes {
   /// Creates a `Bytes` by copying the contents of the given buffer.
   ///
   /// Corresponds to `Bytes::copy_from_slice` / `Bytes::from(Vec<u8>)`.
-  #[napi(factory)]
-  pub fn from_buffer(buffer: Buffer) -> Self {
-    Self { inner: InnerBytes::copy_from_slice(buffer.as_ref()) }
+  #[napi(factory, ts_args_type = "buffer: Uint8Array | Buffer")]
+  pub fn from_buffer(env: napi::bindgen_prelude::Env, buffer: napi::bindgen_prelude::Unknown) -> Result<Self> {
+    let raw = napi::bindgen_prelude::JsValue::value(&buffer).value;
+    let bytes = crate::buffer::get_bytes(&env, raw)?;
+    Ok(Self { inner: InnerBytes::copy_from_slice(&bytes) })
   }
 
   /// Returns the number of bytes contained in this `Bytes`.

@@ -29,13 +29,27 @@ use napi::bindgen_prelude::{
 };
 
 /// Returns `true` if the raw JS value is one of *our* `AlloyBuffer` class instances.
-///
-/// napi-rs classes do not implement `FromNapiValue` for the bare `T`; they
-/// implement `FromNapiRef` (returning `&'static T`), which unwraps the native
-/// pointer only for values wrapped by this exact class. That makes it the
-/// correct, type-safe `AlloyBuffer.isBuffer`-style detection.
-unsafe fn is_buffer_value(env_raw: sys::napi_env, raw: sys::napi_value) -> bool {
+unsafe fn is_alloy_buffer_value(env_raw: sys::napi_env, raw: sys::napi_value) -> bool {
   <AlloyBuffer as FromNapiRef>::from_napi_ref(env_raw, raw).is_ok()
+}
+
+/// Returns `true` if the raw JS value is an `AlloyBuffer` instance OR has `_isBuffer === true`.
+unsafe fn is_buffer_value(env_raw: sys::napi_env, raw: sys::napi_value) -> bool {
+  if is_alloy_buffer_value(env_raw, raw) {
+    return true;
+  }
+  let prop_name = CString::new("_isBuffer").unwrap();
+  let mut has_prop = false;
+  if sys::napi_has_named_property(env_raw, raw, prop_name.as_ptr(), &mut has_prop) == 0 && has_prop {
+    let mut val = ptr::null_mut();
+    if sys::napi_get_named_property(env_raw, raw, prop_name.as_ptr(), &mut val) == 0 {
+      let mut res = false;
+      if sys::napi_get_value_bool(env_raw, val, &mut res) == 0 {
+        return res;
+      }
+    }
+  }
+  false
 }
 use napi::sys;
 use napi::{check_status, Error, Result, Status};
@@ -311,7 +325,11 @@ unsafe fn dataview_bytes(env: &Env, v: sys::napi_value) -> Result<(NonNull<u8>, 
 }
 
 /// Copies the underlying bytes of a AlloyBuffer / TypedArray / DataView / ArrayBuffer.
-fn get_bytes(env: &Env, v: sys::napi_value) -> Result<Vec<u8>> {
+pub fn get_bytes(env: &Env, v: sys::napi_value) -> Result<Vec<u8>> {
+  if unsafe { is_alloy_buffer_value(env.raw(), v) } {
+    let b = unsafe { <AlloyBuffer as FromNapiRef>::from_napi_ref(env.raw(), v) }?;
+    return Ok(b.inner.clone());
+  }
   let mut b = false;
   check_status!(unsafe { sys::napi_is_buffer(env.raw(), v, &mut b) })?;
   if b {
@@ -970,9 +988,21 @@ impl AlloyBuffer {
   }
 
   /// `AlloyBuffer.of(...items)`.
-  #[napi(js_name = "of")]
-  pub fn of(env: Env, items: Vec<Unknown>) -> AlloyBuffer {
-    AlloyBuffer::from_vec(items.iter().map(|u| unknown_to_byte(&env, u)).collect())
+  #[napi(
+    js_name = "of",
+    ts_type = "(...items: number[]): Buffer"
+  )]
+  pub fn of(env: Env, items: Option<Unknown>) -> Result<AlloyBuffer> {
+    if let Some(items) = items {
+      let raw = raw_of(&items);
+      let mut is_arr = false;
+      check_status!(unsafe { sys::napi_is_array(env.raw(), raw, &mut is_arr) })?;
+      if is_arr {
+        let arr: Vec<Unknown> = unsafe { Vec::<Unknown>::from_napi_value(env.raw(), raw) }?;
+        return Ok(AlloyBuffer::from_vec(arr.iter().map(|u| unknown_to_byte(&env, u)).collect()));
+      }
+    }
+    Ok(AlloyBuffer::from_vec(Vec::new()))
   }
 
   /// `AlloyBuffer.isBuffer(value)`.
