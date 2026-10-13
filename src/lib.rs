@@ -1,5 +1,7 @@
 mod bytes;
 mod buffer;
+mod rocket;
+mod codegen;
 
 use napi_derive::napi;
 
