@@ -15,16 +15,19 @@ function routeSearchArgs(
   let byteOffset: number | undefined;
   let end: number | undefined;
   let encoding: string | undefined;
-  if (typeof a === "string") {
+
+  if (typeof c === "string") {
+    encoding = c;
+    if (typeof b === "number") end = b;
+    if (typeof a === "number") byteOffset = a;
+  } else if (typeof b === "string") {
+    encoding = b;
+    if (typeof a === "number") byteOffset = a;
+  } else if (typeof a === "string") {
     encoding = a;
-  } else if (typeof a === "number") {
-    byteOffset = a;
-    if (typeof b === "string") {
-      encoding = b;
-    } else if (typeof b === "number") {
-      end = b;
-      if (typeof c === "string") encoding = c;
-    }
+  } else {
+    if (typeof a === "number") byteOffset = a;
+    if (typeof b === "number") end = b;
   }
   return [byteOffset, end, encoding];
 }
@@ -545,6 +548,12 @@ export class Buffer extends Uint8Array {
   }
 
   readUIntLE(offset: number, byteLength: number): number {
+    if (byteLength < 1 || byteLength > 6) {
+      throw new RangeError('The value of "byteLength" is out of range');
+    }
+    if (offset < 0 || offset + byteLength > this.length) {
+      throw new RangeError('The value of "offset" is out of range');
+    }
     let val = this[offset]!;
     let mul = 1;
     let i = 0;
@@ -559,6 +568,12 @@ export class Buffer extends Uint8Array {
   }
 
   readUIntBE(offset: number, byteLength: number): number {
+    if (byteLength < 1 || byteLength > 6) {
+      throw new RangeError('The value of "byteLength" is out of range');
+    }
+    if (offset < 0 || offset + byteLength > this.length) {
+      throw new RangeError('The value of "offset" is out of range');
+    }
     let len = byteLength;
     let val = this[offset + --len]!;
     let mul = 1;
@@ -707,6 +722,12 @@ export class Buffer extends Uint8Array {
   }
 
   writeUIntLE(value: number, offset: number, byteLength: number): number {
+    if (byteLength < 1 || byteLength > 6) {
+      throw new RangeError('The value of "byteLength" is out of range');
+    }
+    if (offset < 0 || offset + byteLength > this.length) {
+      throw new RangeError('The value of "offset" is out of range');
+    }
     let i = 0;
     let mul = 1;
     this[offset] = value & 0xff;
@@ -721,6 +742,12 @@ export class Buffer extends Uint8Array {
   }
 
   writeUIntBE(value: number, offset: number, byteLength: number): number {
+    if (byteLength < 1 || byteLength > 6) {
+      throw new RangeError('The value of "byteLength" is out of range');
+    }
+    if (offset < 0 || offset + byteLength > this.length) {
+      throw new RangeError('The value of "offset" is out of range');
+    }
     let i = byteLength - 1;
     let mul = 1;
     this[offset + i] = value & 0xff;

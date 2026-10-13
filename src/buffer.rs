@@ -25,7 +25,7 @@ use std::ptr::{self, NonNull};
 
 use napi::bindgen_prelude::{
   ArrayBuffer, BigInt as JsBigInt, Buffer as JsBuffer, Env, FromNapiRef, FromNapiValue, JsValue,
-  Object, Unknown,
+  Unknown,
 };
 
 /// Returns `true` if the raw JS value is one of *our* `AlloyBuffer` class instances.
@@ -2200,11 +2200,11 @@ pub fn is_latin1(input: String) -> bool {
 
 /// Re-encodes `source` from `from_encoding` to `to_encoding`.
 #[napi]
-pub fn transcode(env: Env, source: Unknown, from_encoding: String, to_encoding: String) -> Result<AlloyBuffer> {
+pub fn transcode(env: Env, source: Unknown, from_encoding: String, to_encoding: String) -> Result<JsBuffer> {
   let bytes = get_bytes(&env, raw_of(&source))?;
   let intermediate = bytes_to_str(&bytes, &from_encoding)?;
   let out = str_to_bytes(&intermediate, &to_encoding)?;
-  Ok(AlloyBuffer::from_vec(out))
+  Ok(JsBuffer::from(out))
 }
 
 /// Resolves a `blob:nodedata:` URL into a Blob. Not supported in this binding.
@@ -2217,49 +2217,216 @@ pub fn resolve_object_url(_id: String) -> Result<Blob> {
 }
 
 // ===========================================================================
-// Constants (attached as module properties via `module_exports`).
+// Native helper functions used by `src/buffer.ts`
 // ===========================================================================
 
-#[napi(object)]
-pub struct BufferConstants {
-  #[napi(js_name = "MAX_LENGTH")]
-  pub max_length: u32,
-  #[napi(js_name = "MAX_STRING_LENGTH")]
-  pub max_string_length: u32,
+#[napi(js_name = "bufIsEncoding")]
+pub fn buf_is_encoding(encoding: String) -> bool {
+  SUPPORTED_ENCODINGS.contains(&encoding.to_ascii_lowercase().as_str())
 }
 
-/// Attaches the `node:buffer` constants (`constants`, `kMaxLength`,
-/// `kStringMaxLength`, `INSPECT_MAX_BYTES`, `poolSize`) onto the module
-/// exports object.
-#[napi(module_exports)]
-pub fn init(mut exports: Object) -> Result<()> {
-  exports.set(
-    "constants",
-    BufferConstants {
-      max_length: MAX_LENGTH,
-      max_string_length: MAX_STRING_LENGTH,
-    },
-  )?;
-  exports.set("kMaxLength", MAX_LENGTH)?;
-  exports.set("kStringMaxLength", MAX_STRING_LENGTH)?;
-  exports.set("INSPECT_MAX_BYTES", INSPECT_MAX_BYTES)?;
-  exports.set("poolSize", POOL_SIZE)?;
+#[napi(js_name = "bufByteLength")]
+pub fn buf_byte_length(env: Env, input: Unknown, encoding: Option<String>) -> Result<u32> {
+  let raw = raw_of(&input);
+  if let Ok(s) = unsafe { String::from_napi_value(env.raw(), raw) } {
+    return Ok(str_to_bytes(&s, &encoding.unwrap_or_else(|| "utf8".to_string()))?.len() as u32);
+  }
+  Ok(get_bytes(&env, raw)?.len() as u32)
+}
+
+#[napi(js_name = "bufCompare")]
+pub fn buf_compare(env: Env, buf1: Unknown, buf2: Unknown) -> Result<i32> {
+  let b1 = get_bytes(&env, raw_of(&buf1))?;
+  let b2 = get_bytes(&env, raw_of(&buf2))?;
+  Ok(b1.cmp(&b2) as i32)
+}
+
+#[napi(js_name = "bufConcat")]
+pub fn buf_concat(env: Env, list: Vec<Unknown>, total_length: Option<u32>) -> Result<JsBuffer> {
+  let mut bufs = Vec::with_capacity(list.len());
+  for item in list {
+    bufs.push(get_bytes(&env, raw_of(&item))?);
+  }
+  let total = total_length
+    .unwrap_or_else(|| bufs.iter().map(|b| b.len() as u32).sum()) as usize;
+  let mut out = Vec::with_capacity(total);
+  for b in &bufs {
+    out.extend_from_slice(b.as_slice());
+  }
+  out.resize(total, 0);
+  Ok(out.into())
+}
+
+#[napi(js_name = "bufCopyBytesFrom")]
+pub fn buf_copy_bytes_from(
+  env: Env,
+  view: Unknown,
+  offset: Option<u32>,
+  length: Option<u32>,
+) -> Result<JsBuffer> {
+  let raw = raw_of(&view);
+  let mut is_ta = false;
+  check_status!(unsafe { sys::napi_is_typedarray(env.raw(), raw, &mut is_ta) })?;
+  if is_ta {
+    let (ptr, elem_count, boff, elem) = unsafe { inspect_typedarray(&env, raw)? };
+    let off = offset.unwrap_or(0) as usize;
+    let cnt = length
+      .unwrap_or((elem_count - off) as u32)
+      .min((elem_count - off) as u32) as usize;
+    let total = boff + elem_count * elem;
+    let slice = unsafe { std::slice::from_raw_parts(ptr.as_ptr(), total) };
+    let start = boff + off * elem;
+    let end = (boff + (off + cnt) * elem).min(total);
+    return Ok(slice[start..end].to_vec().into());
+  }
+  let mut is_dv = false;
+  check_status!(unsafe { sys::napi_is_dataview(env.raw(), raw, &mut is_dv) })?;
+  if is_dv {
+    let (ptr, len) = unsafe { dataview_bytes(&env, raw)? };
+    let bytes = unsafe { std::slice::from_raw_parts(ptr.as_ptr(), len) }.to_vec();
+    return Ok(bytes.into());
+  }
+  let mut is_ab = false;
+  check_status!(unsafe { sys::napi_is_arraybuffer(env.raw(), raw, &mut is_ab) })?;
+  if is_ab {
+    let ab = unsafe { ArrayBuffer::from_napi_value(env.raw(), raw) }?;
+    return Ok(ab.to_vec().into());
+  }
+  let bytes = get_bytes(&env, raw)?;
+  Ok(bytes.into())
+}
+
+#[napi(js_name = "bufDecode")]
+pub fn buf_decode(_env: Env, value: String, encoding: Option<String>) -> Result<JsBuffer> {
+  let enc = encoding.unwrap_or_else(|| "utf8".to_string());
+  let bytes = str_to_bytes(&value, &enc)?;
+  Ok(bytes.into())
+}
+
+#[napi(js_name = "bufEncode")]
+pub fn buf_encode(
+  env: Env,
+  buffer: Unknown,
+  encoding: Option<String>,
+  start: Option<u32>,
+  end: Option<u32>,
+) -> Result<String> {
+  let bytes = get_bytes(&env, raw_of(&buffer))?;
+  let enc = encoding.unwrap_or_else(|| "utf8".to_string());
+  let s = (start.unwrap_or(0) as usize).min(bytes.len());
+  let e = (end.unwrap_or(bytes.len() as u32) as usize).min(bytes.len());
+  if s > e {
+    return Err(Error::new(Status::InvalidArg, "invalid start/end range"));
+  }
+  bytes_to_str(&bytes[s..e], &enc)
+}
+
+#[napi(js_name = "bufWrite")]
+pub fn buf_write(
+  env: Env,
+  buffer: Unknown,
+  string: String,
+  offset: Option<u32>,
+  length: Option<u32>,
+  encoding: Option<String>,
+) -> Result<u32> {
+  let raw = raw_of(&buffer);
+  let mut is_ta = false;
+  check_status!(unsafe { sys::napi_is_typedarray(env.raw(), raw, &mut is_ta) })?;
+  if !is_ta {
+    let mut is_buf = false;
+    check_status!(unsafe { sys::napi_is_buffer(env.raw(), raw, &mut is_buf) })?;
+    if !is_buf {
+      return Err(Error::new(Status::InvalidArg, "expected a Buffer or TypedArray"));
+    }
+  }
+  let (ptr, len, boff, elem) = unsafe { inspect_typedarray(&env, raw)? };
+  let total_bytes = len * elem;
+  let bytes = str_to_bytes(&string, encoding.as_deref().unwrap_or("utf8"))?;
+  let o = (offset.unwrap_or(0) as usize).min(total_bytes);
+  let max = total_bytes - o;
+  let want = (length.unwrap_or(total_bytes as u32) as usize).min(bytes.len());
+  let n = want.min(max);
+  if n > 0 {
+    let target_slice = unsafe { std::slice::from_raw_parts_mut(ptr.as_ptr().add(boff), total_bytes) };
+    target_slice[o..o + n].copy_from_slice(&bytes[..n]);
+  }
+  Ok(n as u32)
+}
+
+#[napi(js_name = "bufFill")]
+pub fn buf_fill(
+  env: Env,
+  buffer: Unknown,
+  value: Unknown,
+  offset: Option<u32>,
+  end: Option<u32>,
+  encoding: Option<String>,
+) -> Result<()> {
+  let raw = raw_of(&buffer);
+  let (ptr, len, boff, elem) = unsafe { inspect_typedarray(&env, raw)? };
+  let total_bytes = len * elem;
+  let s = (offset.unwrap_or(0) as usize).min(total_bytes);
+  let e = (end.unwrap_or(total_bytes as u32) as usize).min(total_bytes);
+  if s > e {
+    return Err(Error::new(Status::InvalidArg, "invalid start/end range"));
+  }
+  let val_raw = raw_of(&value);
+  let fill_bytes = if let Ok(n) = unsafe { f64::from_napi_value(env.raw(), val_raw) } {
+    vec![((n as i32) & 0xff) as u8]
+  } else if let Ok(s2) = unsafe { String::from_napi_value(env.raw(), val_raw) } {
+    let enc2 = encoding.unwrap_or_else(|| "utf8".to_string());
+    str_to_bytes(&s2, &enc2)?
+  } else {
+    get_bytes(&env, val_raw)?
+  };
+  let target_slice = unsafe { std::slice::from_raw_parts_mut(ptr.as_ptr().add(boff), total_bytes) };
+  fill_with(&mut target_slice[s..e], &fill_bytes);
   Ok(())
 }
-#[napi(js_name = "constants")]
-pub const CONSTANTS: BufferConstants = BufferConstants {
-  max_length: MAX_LENGTH,
-  max_string_length: MAX_STRING_LENGTH,
-};
 
-#[napi(js_name = "kMaxLength")]
-pub const K_MAX_LENGTH: u32 = MAX_LENGTH;
+#[napi(js_name = "bufIndexOf")]
+pub fn buf_index_of(
+  env: Env,
+  buffer: Unknown,
+  value: Unknown,
+  byte_offset: Option<u32>,
+  end: Option<u32>,
+  encoding: Option<String>,
+) -> Result<i32> {
+  let bytes = get_bytes(&env, raw_of(&buffer))?;
+  let len = bytes.len();
+  let o = (byte_offset.unwrap_or(0) as usize).min(len);
+  let e = (end.unwrap_or(len as u32) as usize).min(len);
+  let pat = search_pattern(&env, &value, encoding)?;
+  Ok(search_from(&bytes, o, e, &pat, false))
+}
 
-#[napi(js_name = "kStringMaxLength")]
-pub const K_STRING_MAX_LENGTH: u32 = MAX_STRING_LENGTH;
+#[napi(js_name = "bufLastIndexOf")]
+pub fn buf_last_index_of(
+  env: Env,
+  buffer: Unknown,
+  value: Unknown,
+  byte_offset: Option<u32>,
+  end: Option<u32>,
+  encoding: Option<String>,
+) -> Result<i32> {
+  let bytes = get_bytes(&env, raw_of(&buffer))?;
+  let len = bytes.len();
+  let o = (byte_offset.unwrap_or(0) as usize).min(len);
+  let e = (end.unwrap_or(len as u32) as usize).min(len);
+  let pat = search_pattern(&env, &value, encoding)?;
+  Ok(search_from(&bytes, o, e, &pat, true))
+}
 
-#[napi(js_name = "INSPECT_MAX_BYTES")]
-pub const INSPECT_MAX_BYTES_EXPORT: u32 = INSPECT_MAX_BYTES;
-
-#[napi(js_name = "poolSize")]
-pub const POOL_SIZE_EXPORT: u32 = POOL_SIZE;
+#[napi(js_name = "bufIncludes")]
+pub fn buf_includes(
+  env: Env,
+  buffer: Unknown,
+  value: Unknown,
+  byte_offset: Option<u32>,
+  end: Option<u32>,
+  encoding: Option<String>,
+) -> Result<bool> {
+  Ok(buf_index_of(env, buffer, value, byte_offset, end, encoding)? >= 0)
+}
