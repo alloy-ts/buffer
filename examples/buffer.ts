@@ -52,7 +52,7 @@ const copied = Buffer.from(utf8);
 log("Buffer.from(buffer) copy equals", copied.equals(utf8)); // true
 
 // Buffer.of(...) convenience constructor
-log("Buffer.of(10, 20, 30)", Buffer.of(10, 20, 30)); // 0a 14 1e
+log("Buffer.of([10, 20, 30])", Buffer.of([10, 20, 30])); // 0a 14 1e
 
 console.log("\n=== Static helpers ===");
 
