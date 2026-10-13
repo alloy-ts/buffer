@@ -13,13 +13,13 @@ npm test              # npx tsx build.ts && vp test
 
 The build produces:
 
-| Artifact                                | Role                                                            |
-| :-------------------------------------- | :-------------------------------------------------------------- |
-| `dist/index.js` (+ root `index.js`)     | NAPI-RS loader that resolves and re-exports the native symbols. |
-| `dist/index.d.ts` (+ root `index.d.ts`) | Generated TypeScript declarations for every native export.      |
-| `dist/alloy-buffer.<platform>.node`         | The compiled native addon (the actual NAPI bindings).           |
+| Artifact                                | Role                                                                        |
+| :-------------------------------------- | :-------------------------------------------------------------------------- |
+| `dist/index.js` (+ root `index.js`)     | NAPI-RS loader that resolves and re-exports the native symbols.             |
+| `dist/index.d.ts` (+ root `index.d.ts`) | Generated TypeScript declarations for every native export.                  |
+| `dist/alloy-buffer.<platform>.node`     | The compiled native addon (the actual NAPI bindings).                       |
 | `src/buffer.rs`                         | Rust `#[napi]` source that generates the native `Buffer` class + constants. |
-| `src/bytes.rs` / native `Bytes`         | NAPI binding for the `bytes::Bytes` type (extra, see below).    |
+| `src/bytes.rs` / native `Bytes`         | NAPI binding for the `bytes::Bytes` type (extra, see below).                |
 
 > Note: the JS-wrapper packing step (`vp pack` → `dist/main.mjs`) currently fails
 > on a pre-existing `@voidzero-dev/vite-plus-core` version mismatch in the
@@ -185,7 +185,7 @@ test suite (`src/buffer.test.ts`, `src/bytes.test.ts`).
 5. **`ascii` decoding is lenient (matches Node).** `buf.toString("ascii")`
    decodes each byte 1:1 into a `U+0000..U+00FF` code point, identical to
    `latin1`/`binary` — it does **not** throw on bytes above `0x7F`. Only the
-   *encoding* direction (`Buffer.from(str, "ascii")`) substitutes `?` (0x3F) for
+   _encoding_ direction (`Buffer.from(str, "ascii")`) substitutes `?` (0x3F) for
    characters above `0x7F`, which matches Node.
 
 6. **`base64url` decoding accepts unpadded input (matches Node).**
@@ -209,5 +209,5 @@ test suite (`src/buffer.test.ts`, `src/bytes.test.ts`).
    free functions. It does **not** emit the `BufferConstructor`,
    `BufferEncoding`, `TranscodeEncoding`, `WithImplicitCoercion`, or
    `ImplicitArrayBuffer` type aliases — the hand-written JS wrapper
-   (`src/buffer.ts`) that carried them has been removed; the `Buffer` *class*
+   (`src/buffer.ts`) that carried them has been removed; the `Buffer` _class_
    itself is now generated directly from `src/buffer.rs` via `#[napi]`.

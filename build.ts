@@ -26,7 +26,16 @@ async function run() {
 
   if (fs.existsSync("./dist")) {
     for (const file of fs.readdirSync("./dist")) {
-      fs.copyFileSync(path.join("./dist", file), path.join(".", file));
+      const srcFile = path.join("./dist", file);
+      const destFile = path.join(".", file);
+      if (fs.existsSync(destFile)) {
+        try {
+          fs.unlinkSync(destFile);
+        } catch {
+          // ignore error if unlink fails
+        }
+      }
+      fs.copyFileSync(srcFile, destFile);
     }
   }
 }

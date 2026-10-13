@@ -44,11 +44,19 @@ log("ranged compare equal", x.compare(y, 1, 4, 1, 4)); // 0
 console.log("\n=== Buffer.from(object) coercion ===");
 
 // Objects with valueOf() are coerced via it.
-const withValueOf = { valueOf() { return "ABC"; } };
+const withValueOf = {
+  valueOf() {
+    return "ABC";
+  },
+};
 log("from valueOf object", Buffer.from(withValueOf).toString()); // "ABC"
 
 // Objects with Symbol.toPrimitive are coerced via it.
-const withToPrimitive = { [Symbol.toPrimitive]() { return "XYZ"; } };
+const withToPrimitive = {
+  [Symbol.toPrimitive]() {
+    return "XYZ";
+  },
+};
 log("from Symbol.toPrimitive object", Buffer.from(withToPrimitive).toString()); // "XYZ"
 
 console.log("\n=== toJSON ===");

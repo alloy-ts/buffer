@@ -81,7 +81,21 @@ log("write at offset 4 (latin1)", Array.from(buf3.subarray(4))); // [ 120, 121 ]
 
 console.log("\n=== Buffer.isEncoding ===");
 
-for (const enc of ["utf8", "utf16le", "ucs2", "base64", "base64url", "hex", "latin1", "binary", "ascii", "utf-8", "UTF-8", "", "rot13"]) {
+for (const enc of [
+  "utf8",
+  "utf16le",
+  "ucs2",
+  "base64",
+  "base64url",
+  "hex",
+  "latin1",
+  "binary",
+  "ascii",
+  "utf-8",
+  "UTF-8",
+  "",
+  "rot13",
+]) {
   log(`isEncoding(${JSON.stringify(enc)})`, Buffer.isEncoding(enc));
 }
 

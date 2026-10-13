@@ -52,11 +52,14 @@ v.writeUIntLE(0x123456, 0, 3);
 log("writeUIntLE(0x123456, 3) -> readUIntLE", v.readUIntLE(0, 3).toString(16)); // "123456"
 v.writeIntLE(-1000, 0, 2);
 log("writeIntLE(-1000, 2) -> readIntLE", v.readIntLE(0, 2)); // -1000
-log("writeUIntBE(0xabcdef, 3) -> readUIntBE", (() => {
-  const x = Buffer.alloc(3);
-  x.writeUIntBE(0xabcdef, 0, 3);
-  return x.readUIntBE(0, 3).toString(16);
-})()); // "abcdef"
+log(
+  "writeUIntBE(0xabcdef, 3) -> readUIntBE",
+  (() => {
+    const x = Buffer.alloc(3);
+    x.writeUIntBE(0xabcdef, 0, 3);
+    return x.readUIntBE(0, 3).toString(16);
+  })(),
+); // "abcdef"
 
 console.log("\n=== Byte swapping ===");
 
@@ -93,14 +96,18 @@ function encode(type: number, flags: number, payloadLen: number, ts: number): Bu
 
 function decode(msg: Buffer): { type: number; flags: number; payloadLen: number; ts: number } {
   let o = 0;
-  const type = msg.readUInt16LE(o); o += 2;
-  const flags = msg.readUInt8(o); o += 1;
-  const payloadLen = msg.readUInt32BE(o); o += 4;
-  const ts = msg.readDoubleBE(o); o += 8;
+  const type = msg.readUInt16LE(o);
+  o += 2;
+  const flags = msg.readUInt8(o);
+  o += 1;
+  const payloadLen = msg.readUInt32BE(o);
+  o += 4;
+  const ts = msg.readDoubleBE(o);
+  o += 8;
   return { type, flags, payloadLen, ts };
 }
 
-const wire = encode(0xbeef, 0x07, 42, 1.733000000000e9);
+const wire = encode(0xbeef, 0x07, 42, 1.733e9);
 log("encoded wire bytes", Array.from(wire)); // 15 bytes
 log("decoded", decode(wire)); // { type: 48879, flags: 7, payloadLen: 42, ts: 1733000000000 }
 

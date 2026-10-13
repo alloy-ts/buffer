@@ -24,8 +24,8 @@ use std::ffi::CString;
 use std::ptr::{self, NonNull};
 
 use napi::bindgen_prelude::{
-  ArrayBuffer, BigInt as JsBigInt, Buffer as JsBuffer, Env, FromNapiRef, FromNapiValue, JsValue,
-  Object, Unknown,
+  ArrayBuffer, BigInt as JsBigInt, Buffer as JsBuffer, Either, Env, FromNapiRef, FromNapiValue,
+  JavaScriptClassExt, JsValue, Object, Unknown, ValueType,
 };
 
 /// Returns `true` if the raw JS value is one of *our* `AlloyBuffer` class instances.
@@ -34,16 +34,13 @@ use napi::bindgen_prelude::{
 /// implement `FromNapiRef` (returning `&'static T`), which unwraps the native
 /// pointer only for values wrapped by this exact class. That makes it the
 /// correct, type-safe `AlloyBuffer.isBuffer`-style detection.
-unsafe fn is_buffer_value(env_raw: sys::napi_env, raw: sys::napi_value) -> bool {
-  <AlloyBuffer as FromNapiRef>::from_napi_ref(env_raw, raw).is_ok()
-}
 use napi::sys;
 use napi::{check_status, Error, Result, Status};
 use napi_derive::napi;
 
 /// Extracts the raw `napi_value` from an `Unknown`.
 fn raw_of(u: &Unknown) -> sys::napi_value {
-  JsValue::value(u).value
+  u.raw()
 }
 
 // ===========================================================================
@@ -312,6 +309,11 @@ unsafe fn dataview_bytes(env: &Env, v: sys::napi_value) -> Result<(NonNull<u8>, 
 
 /// Copies the underlying bytes of a AlloyBuffer / TypedArray / DataView / ArrayBuffer.
 fn get_bytes(env: &Env, v: sys::napi_value) -> Result<Vec<u8>> {
+  let mut ptr = ptr::null_mut();
+  if unsafe { sys::napi_unwrap(env.raw(), v, &mut ptr) } == 0 && !ptr.is_null() {
+    let buf = unsafe { &*(ptr as *const AlloyBuffer) };
+    return Ok(buf.inner.clone());
+  }
   let mut b = false;
   check_status!(unsafe { sys::napi_is_buffer(env.raw(), v, &mut b) })?;
   if b {
@@ -357,10 +359,16 @@ fn typedarray_low_bytes(env: &Env, v: sys::napi_value) -> Result<Vec<u8>> {
 }
 
 fn unknown_to_byte(env: &Env, v: &Unknown) -> u8 {
-  match unsafe { f64::from_napi_value(env.raw(), raw_of(v)) } {
-    Ok(n) => ((n as i32) & 0xff) as u8,
-    Err(_) => 0,
+  let raw = raw_of(v);
+  if let Ok(n) = unsafe { f64::from_napi_value(env.raw(), raw) } {
+    return ((n as i32) & 0xff) as u8;
   }
+  if let Ok(s) = unsafe { String::from_napi_value(env.raw(), raw) } {
+    if let Ok(n) = s.trim().parse::<f64>() {
+      return ((n as i32) & 0xff) as u8;
+    }
+  }
+  0
 }
 
 fn unknown_to_usize(env: &Env, v: &Unknown) -> Option<usize> {
@@ -943,7 +951,7 @@ impl AlloyBuffer {
     }
     let mut b = AlloyBuffer::from_vec(vec![0u8; size as usize]);
     if let Some(f) = fill {
-      b.fill(env, f, None, None, encoding)?;
+      b.fill_internal(&env, f, None, None, encoding)?;
     }
     Ok(b)
   }
@@ -978,7 +986,7 @@ impl AlloyBuffer {
   /// `AlloyBuffer.isBuffer(value)`.
   #[napi(js_name = "isBuffer")]
   pub fn is_buffer(env: Env, value: Unknown) -> bool {
-    unsafe { is_buffer_value(env.raw(), raw_of(&value)) }
+    AlloyBuffer::instance_of(&env, &value).unwrap_or(false)
   }
 
   /// `AlloyBuffer.isEncoding(encoding)`.
@@ -987,18 +995,6 @@ impl AlloyBuffer {
     SUPPORTED_ENCODINGS.contains(&encoding.to_ascii_lowercase().as_str())
   }
 
-  /// `AlloyBuffer.byteLength(value[, encoding])`.
-  #[napi(js_name = "byteLength")]
-  pub fn byte_length(env: Env, value: Unknown, encoding: Option<String>) -> Result<u32> {
-    let raw = raw_of(&value);
-    if let Ok(s) = unsafe { String::from_napi_value(env.raw(), raw) } {
-      return Ok(str_to_bytes(&s, &encoding.unwrap_or_else(|| "utf8".to_string()))?.len() as u32);
-    }
-    if let Ok(b) = unsafe { <AlloyBuffer as FromNapiRef>::from_napi_ref(env.raw(), raw) } {
-      return Ok(b.inner.len() as u32);
-    }
-    Ok(get_bytes(&env, raw)?.len() as u32)
-  }
 
   /// `AlloyBuffer.stringLength(input[, encoding])`.
   #[napi(js_name = "stringLength")]
@@ -1028,11 +1024,6 @@ impl AlloyBuffer {
     AlloyBuffer::from_vec(out)
   }
 
-  /// `AlloyBuffer.compare(buf1, buf2)`.
-  #[napi(js_name = "compare")]
-  pub fn compare_static(buf1: &AlloyBuffer, buf2: &AlloyBuffer) -> i32 {
-    buf1.inner.cmp(&buf2.inner) as i32
-  }
 
   /// `AlloyBuffer.copyBytesFrom(view[, offset[, length]])`.
   #[napi(js_name = "copyBytesFrom")]
@@ -1159,11 +1150,9 @@ impl AlloyBuffer {
 
   // --- fill / write --------------------------------------------------------
 
-  /// `buf.fill(value[, start[, end]][, encoding])`.
-  #[napi(js_name = "fill")]
-  pub fn fill(
+  fn fill_internal(
     &mut self,
-    env: Env,
+    env: &Env,
     value: Unknown,
     a: Option<Unknown>,
     b: Option<Unknown>,
@@ -1173,14 +1162,14 @@ impl AlloyBuffer {
     let mut end: Option<u32> = None;
     let mut enc: Option<String> = None;
     if let Some(a) = a {
-      if let Some(s) = unknown_to_string(&env, &a) {
+      if let Some(s) = unknown_to_string(env, &a) {
         enc = Some(s);
-      } else if let Some(n) = unknown_to_usize(&env, &a) {
+      } else if let Some(n) = unknown_to_usize(env, &a) {
         offset = Some(n as u32);
         if let Some(b) = b {
-          if let Some(s) = unknown_to_string(&env, &b) {
+          if let Some(s) = unknown_to_string(env, &b) {
             enc = Some(s);
-          } else if let Some(m) = unknown_to_usize(&env, &b) {
+          } else if let Some(m) = unknown_to_usize(env, &b) {
             end = Some(m as u32);
             if let Some(c) = c {
               enc = Some(c);
@@ -1205,10 +1194,24 @@ impl AlloyBuffer {
       let bytes = str_to_bytes(&s2, &enc2)?;
       fill_with(&mut self.inner[s..e], &bytes);
     } else {
-      let bytes = get_bytes(&env, raw)?;
+      let bytes = get_bytes(env, raw)?;
       fill_with(&mut self.inner[s..e], &bytes);
     }
     Ok(())
+  }
+
+  /// `buf.fill(value[, start[, end]][, encoding])`.
+  #[napi(js_name = "fill")]
+  pub fn fill(
+    &mut self,
+    env: Env,
+    value: Unknown,
+    a: Option<Unknown>,
+    b: Option<Unknown>,
+    c: Option<String>,
+  ) -> Result<AlloyBuffer> {
+    self.fill_internal(&env, value, a, b, c)?;
+    Ok(AlloyBuffer::from_vec(self.inner.clone()))
   }
 
   /// `buf.write(string[, offset[, length]][, encoding])`.
@@ -2159,14 +2162,22 @@ pub fn btoa(data: String) -> String {
 
 /// Returns true if `input` contains only ASCII bytes.
 #[napi(js_name = "isAscii")]
-pub fn is_ascii(env: Env, input: Unknown) -> Result<bool> {
-  Ok(get_bytes(&env, raw_of(&input))?.iter().all(|b| *b < 128))
+pub fn is_ascii(env: Env, input: Either<&AlloyBuffer, Unknown>) -> Result<bool> {
+  let bytes = match input {
+    Either::A(b) => b.inner.clone(),
+    Either::B(u) => get_bytes(&env, raw_of(&u))?,
+  };
+  Ok(bytes.iter().all(|b| *b < 128))
 }
 
 /// Returns true if `input` is valid UTF-8.
 #[napi(js_name = "isUtf8")]
-pub fn is_utf8(env: Env, input: Unknown) -> Result<bool> {
-  Ok(std::str::from_utf8(&get_bytes(&env, raw_of(&input))?).is_ok())
+pub fn is_utf8(env: Env, input: Either<&AlloyBuffer, Unknown>) -> Result<bool> {
+  let bytes = match input {
+    Either::A(b) => b.inner.clone(),
+    Either::B(u) => get_bytes(&env, raw_of(&u))?,
+  };
+  Ok(std::str::from_utf8(&bytes).is_ok())
 }
 
 /// Returns true if `input` is a valid WebIDL ByteString (every UTF-16 code unit
@@ -2178,8 +2189,11 @@ pub fn is_latin1(input: String) -> bool {
 
 /// Re-encodes `source` from `from_encoding` to `to_encoding`.
 #[napi]
-pub fn transcode(env: Env, source: Unknown, from_encoding: String, to_encoding: String) -> Result<AlloyBuffer> {
-  let bytes = get_bytes(&env, raw_of(&source))?;
+pub fn transcode(env: Env, source: Either<&AlloyBuffer, Unknown>, from_encoding: String, to_encoding: String) -> Result<AlloyBuffer> {
+  let bytes = match source {
+    Either::A(b) => b.inner.clone(),
+    Either::B(u) => get_bytes(&env, raw_of(&u))?,
+  };
   let intermediate = bytes_to_str(&bytes, &from_encoding)?;
   let out = str_to_bytes(&intermediate, &to_encoding)?;
   Ok(AlloyBuffer::from_vec(out))
@@ -2239,5 +2253,32 @@ pub const kStringMaxLength: u32 = MAX_STRING_LENGTH;
 #[napi]
 pub const INSPECT_MAX_BYTES: u32 = INSPECT_MAX_BYTES_VALUE;
 
+#[allow(non_upper_case_globals)]
 #[napi]
 pub const poolSize: u32 = POOL_SIZE;
+
+#[napi]
+impl AlloyBuffer {
+  /// `AlloyBuffer.compare(buf1, buf2)`.
+  #[napi(js_name = "compare")]
+  pub fn compare_static(buf1: &AlloyBuffer, buf2: &AlloyBuffer) -> i32 {
+    buf1.inner.cmp(&buf2.inner) as i32
+  }
+
+  /// `AlloyBuffer.byteLength(value[, encoding])`.
+  #[napi(js_name = "byteLength")]
+  pub fn byte_length(env: Env, value: Unknown, encoding: Option<String>) -> Result<u32> {
+    let enc = encoding.unwrap_or_else(|| "utf8".to_string());
+    let raw = raw_of(&value);
+    if value.get_type()? == ValueType::String {
+      let s = unsafe { String::from_napi_value(env.raw(), raw) }?;
+      return Ok(str_to_bytes(&s, &enc)?.len() as u32);
+    }
+    let mut ptr = ptr::null_mut();
+    if unsafe { sys::napi_unwrap(env.raw(), raw, &mut ptr) } == 0 && !ptr.is_null() {
+      let buf = unsafe { &*(ptr as *const AlloyBuffer) };
+      return Ok(buf.inner.len() as u32);
+    }
+    Ok(get_bytes(&env, raw)?.len() as u32)
+  }
+}

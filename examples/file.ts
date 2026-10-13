@@ -31,7 +31,7 @@ log("file.type", file.type); // "text/plain"
 log("file.size", file.size); // 11
 
 // Synchronous content accessors (NOT promises in this binding).
-log('file.text()', file.text()); // "config data"
+log("file.text()", file.text()); // "config data"
 log("file.bytes() is a TypedArray view", ArrayBuffer.isView(file.bytes())); // true
 log("file.arrayBuffer() is ArrayBuffer", file.arrayBuffer() instanceof ArrayBuffer); // true
 
@@ -48,7 +48,7 @@ log("slice is still a File", slice instanceof File); // true
 log("slice.name (preserved)", slice.name); // "config.txt"
 log("slice.lastModified (preserved)", slice.lastModified); // 1700000000000
 log("slice.type", slice.type); // "text/plain"
-log('slice.text()', slice.text()); // "config"
+log("slice.text()", slice.text()); // "config"
 
 console.log("\n=== File vs Blob relationship ===");
 
