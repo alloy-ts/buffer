@@ -1,4 +1,4 @@
-# Starter Template
+# Task
 
 TypeScript starter template.
 

@@ -7,6 +7,8 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
+futures-executor = { version = "0.3.34", features = ["thread-pool"] }
+futures-task = "0.3"
 napi = "3"
 napi-derive = "3"
 rocket = "0.5.1"
